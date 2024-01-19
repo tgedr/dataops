@@ -163,6 +163,4 @@ cython_debug/
 .local_variables
 .vscode
 tests-results.xml
-
-
 .DS_Store

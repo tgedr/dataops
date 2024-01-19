@@ -16,7 +16,6 @@ class ProcessorInterface(metaclass=abc.ABCMeta):
     def __subclasshook__(cls, subclass):
         return hasattr(subclass, "process") and callable(subclass.process) or NotImplemented
 
-
 @ProcessorInterface.register
 class Processor(abc.ABC):
     def __init__(self, config: Optional[Dict[str, Any]] = None):
