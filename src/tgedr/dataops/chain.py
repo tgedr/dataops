@@ -3,12 +3,16 @@ from typing import Any, Dict, Optional
 
 from tgedr.dataops.processor import Processor
 
-class ChainInterface(metaclass=abc.ABCMeta):
 
+class ChainInterface(metaclass=abc.ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):
-        return (hasattr(subclass, "next") and callable(subclass.next) 
-                and hasattr(subclass, "execute") and callable(subclass.execute)) or NotImplemented
+        return (
+            hasattr(subclass, "next")
+            and callable(subclass.next)
+            and hasattr(subclass, "execute")
+            and callable(subclass.execute)
+        ) or NotImplemented
 
 
 class ChainMixin(abc.ABC):
@@ -18,14 +22,13 @@ class ChainMixin(abc.ABC):
         else:
             self._next.next(handler)
         return self
-    
+
     @abc.abstractmethod
     def execute(self, context: Optional[Dict[str, Any]] = None) -> Any:
         raise NotImplementedError()
 
 
 class ProcessorChainMixin(ChainMixin):
-
     def execute(self, context: Optional[Dict[str, Any]] = None) -> Any:
         self.process(context=context)
         if "_next" in self.__dict__ and self._next is not None:
@@ -36,10 +39,9 @@ class ProcessorChainMixin(ChainMixin):
 class ProcessorChain(ProcessorChainMixin, Processor):
     pass
 
+
 @ChainInterface.register
 class Chain(ChainMixin, abc.ABC):
-    
     @abc.abstractmethod
     def execute(self, context: Optional[Dict[str, Any]] = None) -> Any:
         raise NotImplementedError()
-

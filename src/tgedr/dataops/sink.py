@@ -17,14 +17,12 @@ class SinkInterface(metaclass=abc.ABCMeta):
 
 @SinkInterface.register
 class Sink(abc.ABC):
-
     @abc.abstractmethod
     def put(self, context: Optional[Dict[str, Any]] = None) -> Any:
         raise NotImplementedError()
-    
+
 
 @SinkInterface.register
 class SinkChain(Chain, abc.ABC):
-
     def execute(self, context: Optional[Dict[str, Any]] = None) -> Any:
         return self.put(context=context)
