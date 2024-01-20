@@ -1,21 +1,23 @@
 from typing import Any, Dict, Optional
 
-from tgedr.dataops.chain import ProcessorChain
+from tgedr.dataops.chain import ProcessorChainMixin
+from tgedr.dataops.processor import ProcessorInterface
 
 
-class StartCount(ProcessorChain):
+@ProcessorInterface.register
+class StartCount(ProcessorChainMixin):
     def process(self, context: Optional[Dict[str, Any]] = None) -> Any:
         context["state"] = 2
 
 
-
-class AddOne(ProcessorChain):
+@ProcessorInterface.register
+class AddOne(ProcessorChainMixin):
     def process(self, context: Optional[Dict[str, Any]] = None) -> None:
         context["state"] = context["state"] + 1
 
 
-
-class ShowCount(ProcessorChain):
+@ProcessorInterface.register
+class ShowCount(ProcessorChainMixin):
     def process(self, context: Optional[Dict[str, Any]] = None) -> None:
         print(f"count: {context['state']}")
 
