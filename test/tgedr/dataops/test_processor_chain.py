@@ -8,11 +8,9 @@ class StartCount(ProcessorChain):
         context["state"] = 2
 
 
-
 class AddOne(ProcessorChain):
     def process(self, context: Optional[Dict[str, Any]] = None) -> None:
         context["state"] = context["state"] + 1
-
 
 
 class ShowCount(ProcessorChain):

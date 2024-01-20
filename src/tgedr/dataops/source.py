@@ -1,4 +1,3 @@
-
 from collections import abc
 from typing import Any, Dict, Optional
 
@@ -18,7 +17,6 @@ class SourceInterface(metaclass=abc.ABCMeta):
 
 @SourceInterface.register
 class Source(abc.ABC):
-
     @abc.abstractmethod
     def get(self, context: Optional[Dict[str, Any]] = None) -> Any:
         raise NotImplementedError()
@@ -26,6 +24,5 @@ class Source(abc.ABC):
 
 @SourceInterface.register
 class SourceChain(Chain, abc.ABC):
-
     def execute(self, context: Optional[Dict[str, Any]] = None) -> Any:
         return self.get(context=context)

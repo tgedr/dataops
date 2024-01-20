@@ -19,7 +19,6 @@ class ProcessorInterface(metaclass=abc.ABCMeta):
 
 @ProcessorInterface.register
 class Processor(abc.ABC):
-
     @abc.abstractmethod
     def process(self, context: Optional[Dict[str, Any]] = None) -> Any:
         raise NotImplementedError()
