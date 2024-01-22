@@ -19,6 +19,10 @@ class ProcessorInterface(metaclass=abc.ABCMeta):
 
 @ProcessorInterface.register
 class Processor(abc.ABC):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        super().__init__()
+        self._config = config
+
     @abc.abstractmethod
     def process(self, context: Optional[Dict[str, Any]] = None) -> Any:
         raise NotImplementedError()

@@ -17,6 +17,10 @@ class SinkInterface(metaclass=abc.ABCMeta):
 
 @SinkInterface.register
 class Sink(abc.ABC):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        super().__init__()
+        self._config = config
+
     @abc.abstractmethod
     def put(self, context: Optional[Dict[str, Any]] = None) -> Any:
         raise NotImplementedError()
