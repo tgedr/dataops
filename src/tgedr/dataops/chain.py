@@ -4,6 +4,10 @@ from typing import Any, Dict, Optional
 from tgedr.dataops.processor import Processor
 
 
+class ChainException(Exception):
+    pass
+
+
 class ChainInterface(metaclass=abc.ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):

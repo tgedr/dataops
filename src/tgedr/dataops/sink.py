@@ -4,6 +4,10 @@ from typing import Any, Dict, Optional
 from tgedr.dataops.chain import Chain
 
 
+class SinkException(Exception):
+    pass
+
+
 class SinkInterface(metaclass=abc.ABCMeta):
     """
     def put(self, context: Optional[Dict[str, Any]] = None) -> Any:
@@ -18,7 +22,6 @@ class SinkInterface(metaclass=abc.ABCMeta):
 @SinkInterface.register
 class Sink(abc.ABC):
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__()
         self._config = config
 
     @abc.abstractmethod
