@@ -1,4 +1,4 @@
-from collections import abc
+import abc
 from typing import Any, Dict, Optional
 
 from tgedr.dataops.chain import Chain
