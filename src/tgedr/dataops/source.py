@@ -4,6 +4,10 @@ from typing import Any, Dict, Optional
 from tgedr.dataops.chain import Chain
 
 
+class SourceException(Exception):
+    pass
+
+
 class SourceInterface(metaclass=abc.ABCMeta):
     """
     def get(self, context: Optional[Dict[str, Any]] = None) -> Any:
@@ -18,7 +22,6 @@ class SourceInterface(metaclass=abc.ABCMeta):
 @SourceInterface.register
 class Source(abc.ABC):
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__()
         self._config = config
 
     @abc.abstractmethod
