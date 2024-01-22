@@ -2,7 +2,6 @@ import logging
 import os
 
 import pytest
-from test.tgedr.dataops.impls import ASink
 
 from tgedr.dataops.sink import Sink
 from tgedr.dataops.source import Source
