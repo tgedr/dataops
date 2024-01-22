@@ -4,7 +4,7 @@ import os
 from setuptools import setup, find_namespace_packages
 
 logger = logging.getLogger(__name__)
-VERSION = "0.0.4"
+VERSION = "0.0.5"
 logging.info(f"building version: {VERSION}")
 
 setup(
