@@ -1,13 +1,11 @@
-
-
-
 from abc import ABC, abstractmethod
 import inspect
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 
 logger = logging.getLogger(__name__)
+
 
 class EtlException(Exception):
     pass
@@ -34,9 +32,9 @@ class MyEtl(Etl):
 
 ```
 """
+
+
 class Etl(ABC):
-
-
     def __init__(self, configuration: Optional[Dict[str, Any]] = None) -> None:
         """Initialize a new instance of ETL.
 
@@ -58,7 +56,7 @@ class Etl(ABC):
     @abstractmethod
     def load(self) -> None:
         raise NotImplementedError()
-    
+
     def validate_extract(self):
         """
         Optional extra checks for extract step.
@@ -68,10 +66,9 @@ class Etl(ABC):
         """
         Optional extra checks for transform step.
         """
-    
+
     def run(self) -> Any:
         logger.info("[run|in]")
-
 
         self.extract()
         self.validate_extract()
@@ -82,14 +79,14 @@ class Etl(ABC):
         self.load()
 
         logger.info("[run|out]")
-    
+
     @staticmethod
     def inject_configuration(f):
         def decorator(self):
             signature = inspect.signature(f)
 
             missing_params = []
-            params = {} 
+            params = {}
             for param in [parameter for parameter in signature.parameters if parameter != "self"]:
                 if signature.parameters[param].default != inspect._empty:
                     params[param] = signature.parameters[param].default
@@ -97,21 +94,18 @@ class Etl(ABC):
                     params[param] = None
                     if self._configuration is None or param not in self._configuration:
                         missing_params.append(param)
-                
+
                 if self._configuration is not None and param in self._configuration:
                     params[param] = self._configuration[param]
-
 
             if 0 < len(missing_params):
                 raise EtlException(
                     f"{type(self).__name__}.{f.__name__}: missing required configuration parameters: {missing_params}"
                 )
-            
+
             return f(
                 self,
                 *[params[argument] for argument in params],
             )
 
         return decorator
-
-    
