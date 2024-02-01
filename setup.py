@@ -4,7 +4,7 @@ import os
 from setuptools import setup, find_namespace_packages
 
 logger = logging.getLogger(__name__)
-VERSION = "0.0.8"
+VERSION = "0.0.9"
 logging.info(f"building version: {VERSION}")
 
 setup(
@@ -25,7 +25,7 @@ setup(
     package_dir={"": "src"},
     packages=find_namespace_packages(where="src"),
     install_requires=[
-        "pyarrow==14",
+        "pyarrow==15.*",
         "pyspark==3.5"
     ],
     python_requires='>=3.9',
