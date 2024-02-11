@@ -1,6 +1,7 @@
+import hashlib
 import os
 import sys
-from typing import List
+from typing import AnyStr, List
 
 import pytest
 from pandas import DataFrame
@@ -38,3 +39,27 @@ def assert_frames_are_equal(actual: DataFrame, expected: DataFrame, sort_columns
             check_exact=False,
             check_like=True,
         )
+
+
+def hash_file(filepath, hash_func=hashlib.sha256) -> AnyStr:
+    """Generate a hash for a file.
+
+    Args:
+        filepath (str): The path to the file.
+        hash_func: A hashlib hash function, e.g., hashlib.md5().
+
+    Returns:
+        str: The hexadecimal hash string of the file.
+    """
+    # Initialize the hash object
+    hasher = hash_func()
+
+    # Open the file in binary read mode
+    with open(filepath, "rb") as file:
+        # Read the file in chunks to avoid using too much memory
+        chunk_size = 8192
+        while chunk := file.read(chunk_size):
+            hasher.update(chunk)
+
+    # Return the hexadecimal digest of the hash
+    return hasher.hexdigest()

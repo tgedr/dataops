@@ -1,10 +1,11 @@
 import logging
 import os
+from test.tgedr.dataops.impls import ASource
 
 import pytest
 
-from tgedr.dataops.sink import Sink
-from tgedr.dataops.source import Source
+from tgedr.dataops.sink.sink import Sink
+from tgedr.dataops.source.source import Source
 from tgedr.dataops.utils_reflection import UtilsReflection
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,14 @@ MODULE = "test.tgedr.dataops.impls"
 
 def test_load_subclass_from_module():
     assert UtilsReflection.load_subclass_from_module(MODULE, "ASource", Source) is not None
+
+
+def test_load_class():
+    assert type(UtilsReflection.load_class(MODULE + "." + "ASource", Source)) == type(ASource)
+
+
+def test_load_class_no_parent_check():
+    assert type(UtilsReflection.load_class(MODULE + "." + "ASource")) == type(ASource)
 
 
 def test_load_subclass_from_module_attribute_error():
@@ -72,4 +81,4 @@ def test_find_package_folder():
 
 
 def test_find_class_implementations():
-    assert 1 == len(UtilsReflection.find_class_implementations(packages="test.tgedr.dataops", clazz=Source))
+    assert 3 == len(UtilsReflection.find_class_implementations(packages="test.tgedr.dataops", clazz=Source))

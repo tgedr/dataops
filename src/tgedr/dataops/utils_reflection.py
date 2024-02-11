@@ -18,6 +18,24 @@ class UtilsReflection:
     __MODULE_EXTENSIONS = (".py", ".pyc", ".pyo")
 
     @staticmethod
+    def load_class(clazz: str, parent_check: type = None) -> Any:
+        logger.info(f"[load_class|in] (clazz={clazz}, parent_check={parent_check})")
+        type_elements = clazz.split(".")
+        module = ".".join(type_elements[:-1])
+        _clazz = type_elements[-1]
+
+        result = getattr(import_module(module), _clazz)
+
+        if not callable(result):
+            raise TypeError(f"Object {_clazz} in {module} is not callable.")
+
+        if parent_check and (not issubclass(result, parent_check)):
+            raise TypeError(f"Wrong class type, it is not a subclass of {parent_check.__name__}")
+
+        logger.info(f"[load_class|out] => {result}")
+        return result
+
+    @staticmethod
     def load_subclass_from_module(module: str, clazz: str, super_clazz: type) -> Any:
         logger.info(f"[load_subclass_from_module|in] (module={module}, clazz={clazz}, super_clazz={super_clazz})")
         result = getattr(import_module(module), clazz)

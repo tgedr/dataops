@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 
-from tgedr.dataops.sink import Sink
-from tgedr.dataops.source import Source
+from tgedr.dataops.sink.sink import Sink
+from tgedr.dataops.source.source import Source
 
 
 class ASink(Sink):
