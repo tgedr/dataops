@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from typing import Any, Dict, List, Optional
 from tgedr.dataops.source.source import Source, SourceException
 
@@ -7,8 +8,9 @@ from tgedr.dataops.source.source import Source, SourceException
 logger = logging.getLogger(__name__)
 
 
-class LocalFsFileListSource(Source):
+class LocalFsFileSource(Source):
     CONTEXT_KEY_SOURCE = "source"
+    CONTEXT_KEY_TARGET = "target"
     CONTEXT_KEY_SUFFIX = "file_suffix"
     __DEFAULT_SUFFIX = ".txt"
 
@@ -23,7 +25,18 @@ class LocalFsFileListSource(Source):
         if self.CONTEXT_KEY_SUFFIX in context:
             suffix = context[self.CONTEXT_KEY_SUFFIX]
 
-        result: List[str] = [os.path.join(source, file) for file in os.listdir(source) if file.endswith(suffix)]
+        files: List[str] = [os.path.join(source, file) for file in os.listdir(source) if file.endswith(suffix)]
+        result: List[str] = []
+
+        if self.CONTEXT_KEY_TARGET in context:
+            target = context[self.CONTEXT_KEY_TARGET]
+            for file in files:
+                basename = os.path.basename(file)
+                new_file = os.path.join(target, basename)
+                shutil.move(file, new_file)
+                result.append(new_file)
+        else:
+            result = files
 
         logger.info("[get|out] => {result}")
         return result
