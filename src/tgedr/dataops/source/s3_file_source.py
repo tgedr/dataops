@@ -18,12 +18,12 @@ class S3FileSource(Source, S3Connector):
     def get(self, context: Optional[Dict[str, Any]] = None) -> Any:
         logger.info(f"[get|in] ({context})")
 
-        if self.CONTEXT_KEY_PATH not in context:
-            raise SourceException(f"you must provide context for {self.CONTEXT_KEY_TARGET}")
-        if self.CONTEXT_KEY_LOCAL_FILE_PATH not in context:
+        if self.CONTEXT_KEY_SOURCE not in context:
+            raise SourceException(f"you must provide context for {self.CONTEXT_KEY_SOURCE}")
+        if self.CONTEXT_KEY_TARGET not in context:
             raise SourceException(f"you must provide context for {self.CONTEXT_KEY_TARGET}")
 
-        path = context[self.CONTEXT_KEY_TARGET]
+        path = context[self.CONTEXT_KEY_SOURCE]
         path_elements = path.split("/")
         bucket = path_elements[0]
         key = "/".join(path_elements[1:])
