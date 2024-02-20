@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Dict, Optional
+import os
+from typing import Any, Dict, List, Optional
 from tgedr.dataops.commons.s3_connector import S3Connector
 from tgedr.dataops.sink.sink import Sink, SinkException
 
@@ -23,11 +24,22 @@ class S3FileSink(Sink, S3Connector):
         if self.CONTEXT_TARGET_PATH not in context:
             raise SinkException(f"you must provide context for {self.CONTEXT_TARGET_PATH}")
 
-        path = context[self.CONTEXT_TARGET_PATH]
-        path_elements = path.split("/")
-        bucket = path_elements[0]
-        key = "/".join(path_elements[1:])
-        local_file_path = context[self.CONTEXT_SOURCE_PATH]
+        target = context[self.CONTEXT_TARGET_PATH]
+        target_elements = target.split("/")
+        bucket = target_elements[0]
+        key = "/".join(target_elements[1:])
 
-        self._client.upload_file(Filename=local_file_path, Bucket=bucket, Key=key)
+        source = context[self.CONTEXT_SOURCE_PATH]
+
+        if os.path.isdir(source):
+            files: List[str] = [f for f in os.listdir(source) if not os.path.isdir(os.path.join(source, f))]
+            for file in files:
+                target_key = os.path.join(key, file)
+                source_file = os.path.join(source, file)
+                logger.info(f"[put] uploading file {source_file} to key {target_key}")
+                self._client.upload_file(Filename=source_file, Bucket=bucket, Key=target_key)
+        else:
+            logger.info(f"[put] uploading single file {source} to key {key}")
+            self._client.upload_file(Filename=source, Bucket=bucket, Key=key)
+
         logger.info("[put|out]")
