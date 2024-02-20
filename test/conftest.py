@@ -63,3 +63,8 @@ def hash_file(filepath, hash_func=hashlib.sha256) -> AnyStr:
 
     # Return the hexadecimal digest of the hash
     return hasher.hexdigest()
+
+
+@pytest.fixture(scope="session")
+def resources_folder() -> str:
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "resources"))

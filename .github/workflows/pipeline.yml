@@ -21,7 +21,7 @@ jobs:
     - name: run unit tests
       run: ./helper.sh test
     - name: check coverage
-      run: ./helper.sh check_coverage 80
+      run: ./helper.sh check_coverage 85
     - name: build
       run: ./helper.sh build
     - name: publish

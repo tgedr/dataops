@@ -7,7 +7,11 @@ from tgedr.dataops.source.s3_file_source import S3FileSource
 
 
 def test_put(resources_folder):
-    local_sink_file = tempfile.NamedTemporaryFile().name
+    target_folder = tempfile.TemporaryDirectory("+wb").name
+    if not os.path.exists(target_folder):
+        os.mkdir(target_folder)
+    local_sink_file = os.path.join(target_folder, "dummy.txt")
+
     source_file = os.path.join(resources_folder, "s3_files", "dummy.txt")
     hash = hash_file(source_file)
 

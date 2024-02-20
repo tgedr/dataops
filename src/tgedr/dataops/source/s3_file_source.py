@@ -27,7 +27,13 @@ class S3FileSource(Source, S3Connector):
         path_elements = path.split("/")
         bucket = path_elements[0]
         key = "/".join(path_elements[1:])
-        local_file_path = context[self.CONTEXT_KEY_TARGET]
+        target = context[self.CONTEXT_KEY_TARGET]
 
-        self._client.download_file(Bucket=bucket, Key=key, Filename=local_file_path)
+        objs = self._client.list_objects_v2(Bucket=bucket, Prefix=key)
+        files = [entry["Key"] for entry in objs["Contents"]]
+
+        for file in files:
+            logger.info(f"[get] found file: {file}")
+            self._client.download_file(Bucket=bucket, Key=key, Filename=target)
+
         logger.info("[get|out]")
