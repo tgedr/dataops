@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from tgedr.dataops.commons.s3_connector import S3Connector
 from tgedr.dataops.source.source import Source, SourceException
 
@@ -34,6 +34,7 @@ class S3FileSource(Source, S3Connector):
     def get(self, context: Optional[Dict[str, Any]] = None) -> Any:
         logger.info(f"[get|in] ({context})")
 
+        result: List[str] = []
         if self.CONTEXT_KEY_SOURCE not in context:
             raise SourceException(f"you must provide context for {self.CONTEXT_KEY_SOURCE}")
         if self.CONTEXT_KEY_TARGET not in context:
@@ -54,5 +55,7 @@ class S3FileSource(Source, S3Connector):
             local_file = self.__derive_local_file(target=target, isdir=target_is_dir, file=file)
             logger.info(f"[get] bucket: {bucket}   key: {key}   file: {file}   local_file: {local_file}")
             self._client.download_file(Bucket=bucket, Key=file, Filename=local_file)
+            result.append(local_file)
 
-        logger.info("[get|out]")
+        logger.info(f"[get|out] => {result}")
+        return result

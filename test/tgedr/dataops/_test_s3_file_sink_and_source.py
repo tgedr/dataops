@@ -21,8 +21,9 @@ def test_put_file_get_file(resources_folder):
     o.put(context={"source": source_file, "target": target_file})
 
     u = S3FileSource()
-    u.get(context={"source": target_file, "target": local_sink_file})
+    actual = u.get(context={"source": target_file, "target": local_sink_file})
 
+    assert 1 == len(actual)
     assert hash == hash_file(local_sink_file)
 
 
@@ -41,8 +42,9 @@ def test_put_in_folder_get_to_file(resources_folder):
     o.put(context={"target": target_key, "source": source_file})
 
     u = S3FileSource()
-    u.get(context={"source": target_key, "target": local_sink_file})
+    actual = u.get(context={"source": target_key, "target": local_sink_file})
 
+    assert 1 == len(actual)
     assert hash == hash_file(local_sink_file)
 
 
@@ -63,7 +65,8 @@ def test_put_in_folder_get_in_folder(resources_folder):
     o.put(context={"target": target_key, "source": source_folder})
 
     u = S3FileSource()
-    u.get(context={"source": target_key, "target": tmp_folder})
+    actual = u.get(context={"source": target_key, "target": tmp_folder})
 
+    assert 2 == len(actual)
     assert hash == hash_file(local_sink_file)
     assert hash2 == hash_file(local_sink_file2)
