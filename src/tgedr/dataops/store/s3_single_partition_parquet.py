@@ -12,10 +12,28 @@ logger = logging.getLogger(__name__)
 
 
 class S3FsSinglePartitionParquetStore(FsSinglePartitionParquetStore):
+    CONFIG_KEY_AWS_ACCESS_KEY_ID: str = "aws_access_key_id"
+    CONFIG_KEY_AWS_SECRET_ACCESS_KEY: str = "aws_secret_access_key"
+    CONFIG_KEY_AWS_SESSION_TOKEN: str = "aws_session_token"
+
     @property
     def fs(self):
         if self._fs is None:
-            self._fs = s3fs.S3FileSystem()
+            if all(
+                element in list(self._config.keys())
+                for element in [
+                    self.CONFIG_KEY_AWS_ACCESS_KEY_ID,
+                    self.CONFIG_KEY_AWS_SECRET_ACCESS_KEY,
+                    self.CONFIG_KEY_AWS_SESSION_TOKEN,
+                ]
+            ):
+                self._fs = s3fs.S3FileSystem(
+                    key=self._config[self.CONFIG_KEY_AWS_ACCESS_KEY_ID],
+                    secret=self._config[self.CONFIG_KEY_AWS_SECRET_ACCESS_KEY],
+                    token=self._config[self.CONFIG_KEY_AWS_SESSION_TOKEN],
+                )
+            else:
+                self._fs = s3fs.S3FileSystem()
         return self._fs
 
     def _rmdir(self, key):
