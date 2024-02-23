@@ -33,7 +33,7 @@ class LocalFsFileSource(Source):
             for file in files:
                 basename = os.path.basename(file)
                 new_file = os.path.join(target, basename)
-                shutil.move(file, new_file)
+                shutil.copy(file, new_file)
                 result.append(new_file)
         else:
             result = files

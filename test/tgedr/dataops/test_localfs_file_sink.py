@@ -14,8 +14,9 @@ def test_put():
     o = LocalFsFileSink()
     o.put(context={"source": file.name, "target": target_file})
 
+    folder2 = tempfile.TemporaryDirectory("+wb")
     o = LocalFsFileSource()
-    files = o.get({"source": folder.name, "file_suffix": ".txt", "target": folder.name})
+    files = o.get({"source": folder.name, "file_suffix": ".txt", "target": folder2.name})
 
     assert 1 == len(files)
     assert hash == hash_file(files[0])
