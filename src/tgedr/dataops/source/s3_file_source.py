@@ -17,18 +17,18 @@ class S3FileSource(Source, S3Connector):
         S3Connector.__init__(self)
 
     def __derive_local_file(self, target: str, isdir: bool, file: str):
-        logger.info(f"[__derive_local_file|in] ({target}, {isdir}, {file})")
+        logger.debug(f"[__derive_local_file|in] ({target}, {isdir}, {file})")
 
         if isdir:
             result = os.path.join(target, file)
             basedir = os.path.dirname(result)
             if not os.path.exists(basedir):
-                logger.info(f"[__derive_local_file] creating folder: {basedir}")
+                logger.debug(f"[__derive_local_file] creating folder: {basedir}")
                 os.mkdir(basedir)
         else:
             result = target
 
-        logger.info(f"[__derive_local_file|out] => {result}")
+        logger.debug(f"[__derive_local_file|out] => {result}")
         return result
 
     def get(self, context: Optional[Dict[str, Any]] = None) -> Any:
@@ -51,9 +51,9 @@ class S3FileSource(Source, S3Connector):
         files = [entry["Key"] for entry in objs["Contents"] if not (entry["Key"]).endswith("/")]
 
         for file in files:
-            logger.info(f"[get] found file: {file}")
+            logger.debug(f"[get] found file: {file}")
             local_file = self.__derive_local_file(target=target, isdir=target_is_dir, file=file)
-            logger.info(f"[get] bucket: {bucket}   key: {key}   file: {file}   local_file: {local_file}")
+            logger.debug(f"[get] bucket: {bucket}   key: {key}   file: {file}   local_file: {local_file}")
             self._client.download_file(Bucket=bucket, Key=file, Filename=local_file)
             result.append(local_file)
 

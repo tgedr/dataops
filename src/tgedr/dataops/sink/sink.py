@@ -16,7 +16,12 @@ class SinkInterface(metaclass=abc.ABCMeta):
 
     @classmethod
     def __subclasshook__(cls, subclass):
-        return hasattr(subclass, "put") and callable(subclass.put) or NotImplemented
+        return (
+            hasattr(subclass, "put")
+            and callable(subclass.put)
+            and hasattr(subclass, "delete")
+            and callable(subclass.delete)
+        ) or NotImplemented
 
 
 @SinkInterface.register
@@ -26,6 +31,10 @@ class Sink(abc.ABC):
 
     @abc.abstractmethod
     def put(self, context: Optional[Dict[str, Any]] = None) -> Any:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def delete(self, context: Optional[Dict[str, Any]] = None):
         raise NotImplementedError()
 
 

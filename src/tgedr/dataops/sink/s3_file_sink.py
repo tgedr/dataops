@@ -43,3 +43,19 @@ class S3FileSink(Sink, S3Connector):
             self._client.upload_file(Filename=source, Bucket=bucket, Key=key)
 
         logger.info("[put|out]")
+
+    def delete(self, context: Optional[Dict[str, Any]] = None):
+        logger.info(f"[delete|in] ({context})")
+
+        if self.CONTEXT_TARGET_PATH not in context:
+            raise SinkException(f"you must provide context for {self.CONTEXT_TARGET_PATH}")
+
+        target = context[self.CONTEXT_TARGET_PATH]
+        target = context[self.CONTEXT_TARGET_PATH]
+        target_elements = target.split("/")
+        bucket = target_elements[0]
+        key = "/".join(target_elements[1:])
+
+        response = self._client.delete_object(Bucket=bucket, Key=key)
+        logger.info(f"[delete] response: {response}")
+        logger.info("[delete|out]")

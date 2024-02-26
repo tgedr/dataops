@@ -48,7 +48,7 @@ def test_put_in_folder_get_to_file(resources_folder):
     assert hash == hash_file(local_sink_file)
 
 
-def test_put_in_folder_get_in_folder(resources_folder):
+def test_put_in_folder_get_in_folder(aws_real_test_env, resources_folder):
     tmp_folder = tempfile.TemporaryDirectory("+wb").name
     if not os.path.exists(tmp_folder):
         os.mkdir(tmp_folder)
@@ -70,3 +70,12 @@ def test_put_in_folder_get_in_folder(resources_folder):
     assert 2 == len(actual)
     assert hash == hash_file(local_sink_file)
     assert hash2 == hash_file(local_sink_file2)
+
+    o.delete(context={"target": os.path.join(target_key, "dummy2.txt")})
+
+    tmp_folder2 = tempfile.TemporaryDirectory("+wb").name
+    if not os.path.exists(tmp_folder2):
+        os.mkdir(tmp_folder2)
+
+    actual = u.get(context={"source": target_key, "target": tmp_folder2})
+    assert 1 == len(actual)
