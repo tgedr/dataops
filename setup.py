@@ -4,7 +4,7 @@ import os
 from setuptools import setup, find_namespace_packages
 
 logger = logging.getLogger(__name__)
-VERSION = "0.0.24"
+VERSION = "0.0.25"
 logging.info(f"building version: {VERSION}")
 
 setup(
@@ -27,10 +27,8 @@ setup(
     install_requires=[
         "pandas==2.2.0",
         "pyarrow==15.*",
-    #    "pyspark==3.5",
         "s3fs==2024.2.0",
         "boto3==1.34.34"
     ],
     python_requires='>=3.9',
-    # package_data={'sample': ['package_data.dat'],},
 )
