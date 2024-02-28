@@ -1,9 +1,7 @@
-
 import hashlib
 import os
 import sys
 from typing import AnyStr, List
-
 
 import pytest
 from pandas import DataFrame
@@ -73,7 +71,7 @@ def resources_folder() -> str:
 
 @pytest.fixture
 def aws_real_test_env(monkeypatch):
-    monkeypatch.setenv("S3_CONNECTOR_USE_CREDENTIALS", "0")
+    monkeypatch.setenv("S3_CONNECTOR_USE_CREDENTIALS", "1")
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "XPTO")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "XPTO")
     monkeypatch.setenv("AWS_REGION", "eu-central-1")

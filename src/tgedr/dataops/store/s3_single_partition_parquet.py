@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Any, Optional
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -44,9 +44,9 @@ class S3FsSinglePartitionParquetStore(FsSinglePartitionParquetStore):
     def _exists(self, key) -> bool:
         return self.fs.get_file_info(key).type.name != "NotFound"
 
-    def get(self, key: str, use_legacy_dataset: bool = False) -> pd.DataFrame:
+    def get(self, key: str, use_legacy_dataset: bool = False, schema: Any = None) -> pd.DataFrame:
         logger.info(f"[get|in] ({key}, {use_legacy_dataset})")
-        result = pq.read_table(key, filesystem=s3fs.S3FileSystem()).to_pandas()
+        result = pq.read_table(key, filesystem=self.fs, schema=schema).to_pandas()
         logger.info(f"[get|out] => {result}")
         return result
 
@@ -57,6 +57,7 @@ class S3FsSinglePartitionParquetStore(FsSinglePartitionParquetStore):
         partition_field: Optional[str] = None,
         append: bool = False,
         replace_partitions: bool = False,
+        schema: Any = None,
     ):
         logger.info(f"[save|in] ({df}, {key}, {partition_field}, {append}, {replace_partitions})")
         if replace_partitions and append:
@@ -64,7 +65,11 @@ class S3FsSinglePartitionParquetStore(FsSinglePartitionParquetStore):
 
         if append:
             pq.write_to_dataset(
-                pa.Table.from_pandas(df), root_path=key, partition_cols=[partition_field], filesystem=self.fs
+                pa.Table.from_pandas(df),
+                root_path=key,
+                partition_cols=[partition_field],
+                filesystem=self.fs,
+                schema=schema,
             )
         elif replace_partitions:
             partitions = df[partition_field].unique().tolist()
@@ -75,6 +80,7 @@ class S3FsSinglePartitionParquetStore(FsSinglePartitionParquetStore):
                 partition_cols=[partition_field],
                 existing_data_behavior="delete_matching",
                 filesystem=self.fs,
+                schema=schema,
             )
         else:
             self.delete(key)
@@ -84,5 +90,6 @@ class S3FsSinglePartitionParquetStore(FsSinglePartitionParquetStore):
                 partition_cols=[partition_field],
                 existing_data_behavior="delete_matching",
                 filesystem=self.fs,
+                schema=schema,
             )
         logger.info("[save|out]")

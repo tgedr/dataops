@@ -1,5 +1,5 @@
 import pandas as pd
-from moto import mock_aws
+import pyarrow as pa
 
 from tgedr.dataops.store.s3_single_partition_parquet import (
     S3FsSinglePartitionParquetStore,
@@ -13,10 +13,11 @@ store: Store = S3FsSinglePartitionParquetStore(
         "aws_session_token": "",
     }
 )
-dataset_path = "faersdataset-dev-landing/tmp"
+
+dataset_path = "faersdataset-dev-landing/tmp/s3_single_partition_parquet/one"
+dataset_path2 = "faersdataset-dev-landing/tmp/s3_single_partition_parquet/two"
 
 
-@mock_aws
 def test_save():
     df = pd.DataFrame(
         {
@@ -95,3 +96,57 @@ def test_update_rows():
 def test_delete_rows():
     store.delete(dataset_path, partition_field="country", kv_dict={"id": [21], "value": [123]})
     assert 3 == store.get(dataset_path).shape[0]
+
+
+def test_schema_with_nulls():
+    schema = pa.schema(
+        [
+            pa.field("id", pa.int64()),
+            pa.field("value", pa.float64()),
+            pa.field("text", pa.string()),
+            pa.field("country", pa.string()),
+        ]
+    )
+
+    df = pd.DataFrame(
+        {
+            "id": [1, None, 3],
+            "value": [56.3, 12.3, None],
+            "text": ["56.3", "12.3", "82.3"],
+            "country": ["us", "dk", "pt"],
+        }
+    )
+    df["id"] = df["id"].astype(pd.Int64Dtype(), errors="ignore")
+    store.save(df, key=dataset_path2, partition_field="country", replace_partitions=True)
+
+    df = pd.DataFrame(
+        {
+            "id": [None, None, None, None],
+            "value": [29.3, 90.3, None, 23.0],
+            "text": ["29.3", None, "None", None],
+            "country": ["dk", "it", "es", "pt"],
+        }
+    )
+    df["id"] = df["id"].astype(pd.Int64Dtype(), errors="ignore")
+    store.save(df, key=dataset_path2, partition_field="country", replace_partitions=True)
+
+    df2 = store.get(dataset_path2)
+    assert 5 == df2.shape[0]
+
+    """
+    
+    
+    
+    df2 =  store.get(dataset_path2)
+    assert 7 == df2.shape[0]
+
+    df = pd.DataFrame(
+        {
+            "id": [None, None, None, None, None, None, None],
+            "value": [56, 12, 82, 29, 90, 34, 230],
+            "country": ["us", "dk", "pt", "dk", "us", "dk", "pt"],
+        }
+    )
+    df["id"] = df["id"].astype(int, errors="ignore")
+    store.save(df, key=dataset_path2, partition_field="country", schema=schema)
+    """

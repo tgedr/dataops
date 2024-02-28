@@ -23,11 +23,9 @@ class ChainMixin(abc.ABC):
     def next(self, handler: "ChainMixin") -> "ChainMixin":
         if "_next" not in self.__dict__ or self._next is None:
             self._next: "ChainMixin" = handler
-
         else:
             self._next.next(handler)
         return self
-
 
     @abc.abstractmethod
     def execute(self, context: Optional[Dict[str, Any]] = None) -> Any:
