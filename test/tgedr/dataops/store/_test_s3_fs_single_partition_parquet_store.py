@@ -6,8 +6,13 @@ from tgedr.dataops.store.s3_single_partition_parquet import (
 )
 from tgedr.dataops.store.store import Store
 
-store: Store = S3FsSinglePartitionParquetStore()
-
+store: Store = S3FsSinglePartitionParquetStore(
+    {
+        "aws_access_key_id": "",
+        "aws_secret_access_key": "",
+        "aws_session_token": "",
+    }
+)
 dataset_path = "faersdataset-dev-landing/tmp"
 
 
