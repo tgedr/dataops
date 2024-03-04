@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pyarrow.compute as pc
 
 from tgedr.dataops.store.store import Store, StoreException
 
@@ -30,9 +31,12 @@ class FsSinglePartitionParquetStore(Store, ABC):
         Store.__init__(self, config)
         self._fs = None
 
-    def get(self, key: str, use_legacy_dataset: bool = False) -> pd.DataFrame:
+    def get(self, key: str, use_legacy_dataset: bool = False, filter: callable = None) -> pd.DataFrame:
         logger.info(f"[get|in] ({key}, {use_legacy_dataset})")
-        result = pq.read_table(key, use_legacy_dataset=use_legacy_dataset, filesystem=self.fs).to_pandas()
+        table = pq.read_table(key, filesystem=self.fs)
+        if filter is not None:
+            table = table.filter(filter)
+        result = table.to_pandas()
         logger.info(f"[get|out] => {result}")
         return result
 
@@ -48,11 +52,18 @@ class FsSinglePartitionParquetStore(Store, ABC):
         if partitions is not None and partition_field is not None:
             self._remove_partitions(key, partition_field=partition_field, partition_values=partitions)
         elif kv_dict is not None and partition_field is not None:
-            df0 = self.get(key)
-            df = pd.DataFrame(kv_dict)
-            joined_index = pd.merge(df0, df, on=list(kv_dict.keys()), how="inner").index
-            df0.drop(joined_index, inplace=True)
-            self.save(df0, key, partition_field=partition_field)
+            table = pq.read_table(key, filesystem=self.fs)
+            for k, v in kv_dict.items():
+                filter_condition = ~pc.is_in(pc.field(k), pa.array(v))
+                table = table.filter(filter_condition)
+            self.delete(key)
+            pq.write_to_dataset(
+                table,
+                root_path=key,
+                partition_cols=[partition_field],
+                existing_data_behavior="delete_matching",
+                filesystem=self.fs,
+            )
         else:
             self._rmdir(key)
 
@@ -114,8 +125,11 @@ class FsSinglePartitionParquetStore(Store, ABC):
         logger.info(f"[save|in] ({df}, {key}, {key_fields}, {partition_field})")
 
         df0 = self.get(key)
-        joined_index = pd.merge(df0, df, on=key_fields, how="inner").index
-        df0.loc[joined_index] = df
+        match = pd.merge(df0.reset_index(), df.reset_index(), on=key_fields)
+        index_left = match["index_x"]
+        index_right = match["index_y"]
+        df0.iloc[index_left] = df.iloc[index_right]
+
         self.save(df0, key, partition_field=partition_field)
 
         logger.info(f"[save|out]")

@@ -2,6 +2,8 @@ import os
 import tempfile
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.compute as pc
 
 from tgedr.dataops.store.local_fs_single_partition_parquet import (
     LocalFsSinglePartitionParquetStore,
@@ -26,6 +28,10 @@ def test_save():
     store.save(df, key=dataset_path, partition_field="country")
 
     assert 7 == store.get(dataset_path).shape[0]
+
+    filter_condition = ~pc.is_in(pc.field("id"), value_set=pa.array([2, 3]))
+
+    assert 5 == store.get(dataset_path, filter=filter_condition).shape[0]
 
 
 def test_save_again_and_check():
@@ -72,6 +78,7 @@ def test_overwrite_dataset():
         {
             "id": [21, 22, 23, 24],
             "value": [256, 212, 282, 229],
+            "metric": ["a", "b", "c", "d"],
             "country": ["us", "dk", "pt", "it"],
         }
     )
@@ -80,7 +87,7 @@ def test_overwrite_dataset():
 
 
 def test_update_rows():
-    df = pd.DataFrame({"id": [21], "value": [123], "country": ["us"]})
+    df = pd.DataFrame({"id": [21], "value": [123], "metric": ["e"], "country": ["us"]})
     store.update(df, key=dataset_path, partition_field="country", key_fields=["id", "country"])
 
     df = store.get(dataset_path)
