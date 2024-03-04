@@ -7,3 +7,6 @@ data operations related code
 ## current constructs
 
 ![class diagram](assets/dataops.png)
+
+please check the unit tests code for usage examples
+
