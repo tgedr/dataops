@@ -76,9 +76,10 @@ class Etl(ABC):
         self.transform()
         self.validate_transform()
 
-        self.load()
+        result: Any = self.load()
 
-        logger.info("[run|out]")
+        logger.info(f"[run|out] => {result}")
+        return result
 
     @staticmethod
     def inject_configuration(f):
