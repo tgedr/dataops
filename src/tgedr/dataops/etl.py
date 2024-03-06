@@ -46,15 +46,15 @@ class Etl(ABC):
         self._configuration = configuration
 
     @abstractmethod
-    def extract(self) -> None:
+    def extract(self) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
-    def transform(self) -> None:
+    def transform(self) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
-    def load(self) -> None:
+    def load(self) -> Any:
         raise NotImplementedError()
 
     def validate_extract(self):
