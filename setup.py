@@ -4,7 +4,7 @@ import os
 from setuptools import setup, find_namespace_packages
 
 logger = logging.getLogger(__name__)
-VERSION = "0.0.28"
+VERSION = "0.0.29"
 logging.info(f"building version: {VERSION}")
 
 setup(
@@ -17,7 +17,6 @@ setup(
     license='Unlicense',
     classifiers=[
     'Development Status :: 3 - Alpha',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10'
     ],
     keywords='data engineering mlops ml',
@@ -25,10 +24,11 @@ setup(
     package_dir={"": "src"},
     packages=find_namespace_packages(where="src"),
     install_requires=[
-        "pandas==2.2.0",
+        "pandas==1.5.3",
         "pyarrow==15.*",
-        "s3fs==2024.2.0",
-        "boto3==1.34.34"
+        "s3fs==2024.5.0",
+        "boto3==1.34.106",
+        "great_expectations==0.18.10"
     ],
     python_requires='>=3.9',
 )

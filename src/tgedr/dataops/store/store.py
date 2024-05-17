@@ -6,6 +6,10 @@ class StoreException(Exception):
     pass
 
 
+class NoStoreException(StoreException):
+    pass
+
+
 class StoreInterface(metaclass=abc.ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -23,6 +27,8 @@ class StoreInterface(metaclass=abc.ABCMeta):
 
 @StoreInterface.register
 class Store(abc.ABC):
+    """abstract class used to manage persistence, defining CRUD-like (CreateReadUpdateDelete) methods"""
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self._config = config
 

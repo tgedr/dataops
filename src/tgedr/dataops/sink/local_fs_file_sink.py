@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 from typing import Any, Dict, Optional
+
 from tgedr.dataops.sink.sink import Sink, SinkException
 
 
@@ -9,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class LocalFsFileSink(Sink):
+    """sink class used to save/persist an object/file to a local fs location"""
+
     CONTEXT_SOURCE_PATH = "source"
     CONTEXT_TARGET_PATH = "target"
 

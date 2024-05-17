@@ -4,38 +4,24 @@ from typing import Any, Dict, List, Optional
 from tgedr.dataops.commons.s3_connector import S3Connector
 
 from tgedr.dataops.source.source import Source, SourceException
-from tgedr.dataops.commons.utils_fs import remove_s3_protocol, resolve_s3_protocol
+from tgedr.dataops.commons.utils_fs import process_s3_path, resolve_s3_protocol
 
 
 logger = logging.getLogger(__name__)
 
 
-class S3FileSource(Source, S3Connector):
-    """class used to retrieve objects/files from s3 bucket to local fs location"""
+class S3FileCopy(Source, S3Connector):
+    """class used to copy objects/files from an s3 bucket to another s3 bucket"""
 
     CONTEXT_KEY_SOURCE = "source"
     CONTEXT_KEY_TARGET = "target"
     CONTEXT_KEY_FILES = "files"
     CONTEXT_KEY_SUFFIX = "suffix"
+    CONTEXT_KEY_PRESERVE_SOURCE_KEY = "preserve_source_key"
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         Source.__init__(self, config=config)
         S3Connector.__init__(self)
-
-    def __derive_local_file(self, target: str, isdir: bool, file: str):
-        logger.debug(f"[__derive_local_file|in] ({target}, {isdir}, {file})")
-
-        if isdir:
-            result = os.path.join(target, file)
-            basedir = os.path.dirname(result)
-            if not os.path.exists(basedir):
-                logger.debug(f"[__derive_local_file] creating folder: {basedir}")
-                os.mkdir(basedir)
-        else:
-            result = target
-
-        logger.debug(f"[__derive_local_file|out] => {result}")
-        return result
 
     def list(self, context: Optional[Dict[str, Any]] = None) -> List[str]:
         logger.info(f"[list|in] ({context})")
@@ -47,10 +33,7 @@ class S3FileSource(Source, S3Connector):
         s3_protocol: str = resolve_s3_protocol(context[self.CONTEXT_KEY_SOURCE])
         protocol = "" if s3_protocol is None else s3_protocol
 
-        path = remove_s3_protocol(context[self.CONTEXT_KEY_SOURCE])
-        path_elements = path.split("/")
-        bucket = path_elements[0]
-        key = "/".join(path_elements[1:])
+        bucket, key = process_s3_path(context[self.CONTEXT_KEY_SOURCE])
 
         objs = self._client.list_objects_v2(Bucket=bucket, Prefix=key)
         result = [
@@ -74,37 +57,43 @@ class S3FileSource(Source, S3Connector):
         if self.CONTEXT_KEY_TARGET not in context:
             raise SourceException(f"you must provide context for {self.CONTEXT_KEY_TARGET}")
 
-        preserve_structure = True
+        preserve_source_key = False
+        if self.CONTEXT_KEY_PRESERVE_SOURCE_KEY in context:
+            preserve_source_key = (
+                True if (str(context[self.CONTEXT_KEY_PRESERVE_SOURCE_KEY]).lower() in ["1", "true"]) else False
+            )
+        logger.info(f"[get] preserve_source_key: {preserve_source_key}")
+
+        target_bucket, target_key = process_s3_path(context[self.CONTEXT_KEY_TARGET])
+        s3_protocol: str = resolve_s3_protocol(context[self.CONTEXT_KEY_TARGET])
+        protocol = "" if s3_protocol is None else s3_protocol
 
         files = context[self.CONTEXT_KEY_FILES]
-        target = context[self.CONTEXT_KEY_TARGET]
-
-        target_is_dir: bool = False
-        if os.path.isdir(target):
-            target_is_dir = True
+        multiple_files: bool = True if (0 < len(files)) else False
 
         for file in files:
-            path_elements = remove_s3_protocol(file).split("/")
-            bucket = path_elements[0]
-            key = "/".join(path_elements[1:])
-            filename = path_elements[-1]
+            src_bucket, src_key = process_s3_path(file)
 
-            if target_is_dir:
-                if preserve_structure:
-                    local_file = os.path.join(target, key)
-                else:
-                    local_file = os.path.join(target, filename)
+            src = {"Bucket": src_bucket, "Key": src_key}
+
+            if True == preserve_source_key:
+                key = os.path.join(target_key, src_key)
             else:
-                local_file = target
+                key = target_key
+                if not multiple_files:
+                    if target_key.endswith("/"):
+                        src_key_leaf = os.path.basename(src_key)
+                        key += src_key_leaf
+                else:
+                    src_key_leaf = os.path.basename(src_key)
+                    key = os.path.join(key, src_key_leaf)
 
-            # assure we have that path there
-            local_folder = os.path.dirname(local_file)
-            if not os.path.isdir(local_folder):
-                os.makedirs(local_folder)
+            logger.info(
+                f"[get] copying... src bucket: {src_bucket}   src key: {src_key}   target bucket: {target_bucket}   target key: {key}"
+            )
+            self._client.copy(src, target_bucket, key)
 
-            logger.info(f"[get] bucket: {bucket}   key: {key}   file: {file}   local_file: {local_file}")
-            self._client.download_file(Bucket=bucket, Key=key, Filename=local_file)
-            result.append(local_file)
+            result.append(os.path.join(protocol, target_bucket, key))
 
         logger.info(f"[get|out] => {result}")
         return result

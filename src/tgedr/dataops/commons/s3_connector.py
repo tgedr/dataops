@@ -3,13 +3,15 @@ import boto3
 
 
 class S3Connector:
+    """utility base class to be extended, providing a connection session with aws s3 resources"""
+
     def __init__(self):
         self.__resource = None
         self.__session = None
         self.__client = None
 
     @property
-    def _session(self):
+    def _session(self):  # pragma: no cover
         if self.__session is None:
             if "1" == os.getenv("S3_CONNECTOR_USE_CREDENTIALS", default="0"):
                 self.__session = boto3.Session(

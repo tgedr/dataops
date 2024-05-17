@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 class LocalFsSinglePartitionParquetStore(FsSinglePartitionParquetStore):
+    """FsSinglePartitionParquetStore implementation using local file system"""
+
     @property
     def fs(self):
         if self._fs is None:

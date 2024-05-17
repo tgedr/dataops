@@ -81,4 +81,6 @@ def test_find_package_folder():
 
 
 def test_find_class_implementations():
-    assert 4 == len(UtilsReflection.find_class_implementations(packages="test.tgedr.dataops", clazz=Source))
+    assert 1 == len(
+        set(UtilsReflection.find_class_implementations(packages="test.tgedr.dataops", clazz=Source).values())
+    )

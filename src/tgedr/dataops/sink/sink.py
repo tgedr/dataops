@@ -26,6 +26,8 @@ class SinkInterface(metaclass=abc.ABCMeta):
 
 @SinkInterface.register
 class Sink(abc.ABC):
+    """abstract class defining methods ('put' and 'delete') to manage persistence of data somewhere as defined by implementing classes"""
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self._config = config
 
