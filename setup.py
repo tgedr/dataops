@@ -4,7 +4,7 @@ import os
 from setuptools import setup, find_namespace_packages
 
 logger = logging.getLogger(__name__)
-VERSION = "0.0.29"
+VERSION = "0.0.31"
 logging.info(f"building version: {VERSION}")
 
 setup(
@@ -28,7 +28,8 @@ setup(
         "pyarrow==15.*",
         "s3fs==2024.5.0",
         "boto3==1.34.106",
-        "great_expectations==0.18.10"
+        "great_expectations==0.18.10",
+        "deltalake~=0.16.4"
     ],
     python_requires='>=3.9',
 )

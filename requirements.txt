@@ -18,4 +18,4 @@ boto3==1.34.106
 great_expectations==0.18.10
 pyspark~=3.3.0
 delta-spark~=2.3.0
-
+deltalake~=0.16.4

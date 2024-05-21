@@ -2,8 +2,8 @@ name: pipelines
 on:
   push:
     branches:
-      - release
-      - development
+      - "development"
+      - "release_*"
 jobs:
   build:
     runs-on: macos-latest
@@ -29,7 +29,7 @@ jobs:
     - name: build
       run: ./helper.sh build
     - name: publish
-      if: ${{ github.ref == 'refs/heads/release' }}
+      if: ${{ startsWith(github.ref, 'refs/heads/release_') }}
       env:
         PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
       run: ./helper.sh publish
