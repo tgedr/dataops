@@ -6,7 +6,7 @@ import pytest
 from moto import mock_aws
 from pyspark.sql import DataFrame, Row
 
-import tgedr.dataops.source.s3_delta_table as s3dt
+import tgedr.dataops.source.delta_table_source as dts
 from tgedr.dataops.commons.utils_fs import temp_file
 from tgedr.dataops.sink.s3_file_sink import S3FileSink
 from tgedr.dataops.source.s3_delta_table import S3DeltaTable
@@ -66,7 +66,7 @@ def test_get(monkeypatch, environment_mock, spark):
                 df = df[columns]
             return df
 
-    monkeypatch.setattr(s3dt, "DeltaTable", MockS3DatasetDeltaTable)
+    monkeypatch.setattr(dts, "DeltaTable", MockS3DatasetDeltaTable)
     o = S3DeltaTable()
 
     actual: pd.DataFrame = o.get(context={"url": f"s3://{key}"})
