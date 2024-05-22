@@ -2,9 +2,7 @@ from typing import List, Optional
 
 import boto3
 import pandas as pd
-import pytest
 from moto import mock_aws
-from pyspark.sql import DataFrame, Row
 
 import tgedr.dataops.source.delta_table_source as dts
 from tgedr.dataops.commons.utils_fs import temp_file
@@ -21,20 +19,10 @@ def create_bucket(name: str):
 
 def create_dummy_file_in_bucket(bucket: str, key: str, dst_file: Optional[str] = None):
     dummy = temp_file()
-
     target = f"s3://{bucket}/{key}/{dst_file}"
     o = S3FileSink()
     o.put(context={"source": dummy, "target": target})
     return target
-
-
-@pytest.fixture
-def data(spark) -> DataFrame:
-    d = [
-        Row(id=3, country="us", region="america"),
-        Row(id=2, country="dk", region="europe"),
-    ]
-    return spark.createDataFrame(d)
 
 
 @mock_aws
@@ -53,7 +41,7 @@ def test_list():
     assert actual == ["ss/datasets/A", "ss/datasets/B"]
 
 
-def test_get(monkeypatch, environment_mock, spark):
+def test_get(monkeypatch):
     key = "dummy"
 
     class MockS3DatasetDeltaTable:
