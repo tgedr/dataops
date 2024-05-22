@@ -31,6 +31,7 @@ data operations related code
 - __S3FileCopy__: __source__ class used to copy objects/files from an s3 bucket to another s3 bucket ([example](test/tgedr/dataops/source/test_s3_copy.py))
 - __S3DeltaTable__: __source__ class used to read delta lake format datasets from s3 bucket with python only, pyspark not needed, returning a pandas dataframe ([example](test/tgedr/dataops/source/test_s3_delta_table.py))
 - __LocalDeltaTable__: __source__ class used to read delta lake format datasets from local fs with python only, pyspark not needed, returning a pandas dataframe ([example](test/tgedr/dataops/source/test_local_delta_table.py))
+- __PdDfS3Source__: __source__ class used to read a pandas dataframe from, by default, a csv file in s3 ([example](test/tgedr/dataops/source/test_pd_df_s3_source.pypd))
 
 #### store
 - __Store__ : abstract class used to manage persistence, defining CRUD-like (CreateReadUpdateDelete) methods

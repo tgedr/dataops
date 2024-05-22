@@ -52,6 +52,15 @@ def process_s3_path(path: str) -> Tuple[str, str]:
     return (bucket, key)
 
 
+def process_s3_url(url: str) -> Tuple[str, str, str]:
+    protocol = resolve_s3_protocol(url)
+    no_protocol_url = remove_s3_protocol(url)
+    path_elements = no_protocol_url.split("/")
+    bucket = path_elements[0]
+    key = "/".join(path_elements[1:])
+    return ("" if protocol is None else protocol, bucket, key)
+
+
 def hash_file(filepath, hash_func=hashlib.sha256) -> AnyStr:
     """Generate a hash for a file.
 
