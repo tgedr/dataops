@@ -1,8 +1,8 @@
 from typing import List
 
 import pandas as pd
-from pyspark.sql import Row
 import pytest
+from pyspark.sql import Row
 
 from tgedr.dataops.commons.utils_fs import temp_dir
 from tgedr.dataops.source.local_delta_table import LocalDeltaTable

@@ -45,6 +45,5 @@ class DeltaTableSource(Source, ABC):
         except TableNotFoundError as tnfe:
             raise NoSourceException(f"could not find delta table: {context[self.CONTEXT_KEY_URL]}")
 
-
         logger.info(f"[get|out] => {result}")
         return result
