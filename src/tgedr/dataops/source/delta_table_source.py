@@ -3,8 +3,9 @@ import logging
 from typing import Any, Dict, List, Optional
 from pandas import DataFrame
 from deltalake import DeltaTable
+from deltalake.exceptions import TableNotFoundError
 
-from tgedr.dataops.source.source import Source, SourceException
+from tgedr.dataops.source.source import Source, SourceException, NoSourceException
 
 
 logger = logging.getLogger()
@@ -36,10 +37,14 @@ class DeltaTableSource(Source, ABC):
         if self.CONTEXT_KEY_COLUMNS in context:
             columns = context[self.CONTEXT_KEY_COLUMNS]
 
-        delta_table = DeltaTable(
-            table_uri=context[self.CONTEXT_KEY_URL], storage_options=self._storage_options, without_files=True
-        )
-        result = delta_table.to_pandas(columns=columns)
+        try:
+            delta_table = DeltaTable(
+                table_uri=context[self.CONTEXT_KEY_URL], storage_options=self._storage_options, without_files=True
+            )
+            result = delta_table.to_pandas(columns=columns)
+        except TableNotFoundError as tnfe:
+            raise NoSourceException(f"could not find delta table: {context[self.CONTEXT_KEY_URL]}")
+
 
         logger.info(f"[get|out] => {result}")
         return result

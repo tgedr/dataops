@@ -8,6 +8,10 @@ class SourceException(Exception):
     pass
 
 
+class NoSourceException(SourceException):
+    pass
+
+
 class SourceInterface(metaclass=abc.ABCMeta):
     """
     def get(self, context: Optional[Dict[str, Any]] = None) -> Any:

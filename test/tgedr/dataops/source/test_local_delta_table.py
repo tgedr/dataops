@@ -2,9 +2,11 @@ from typing import List
 
 import pandas as pd
 from pyspark.sql import Row
+import pytest
 
 from tgedr.dataops.commons.utils_fs import temp_dir
 from tgedr.dataops.source.local_delta_table import LocalDeltaTable
+from tgedr.dataops.source.source import NoSourceException
 
 
 def test_list(spark):
@@ -49,3 +51,8 @@ def test_get(spark):
     assert 1 == actual.shape[1]
 
     assert ["america", "europe"] == list((actual.to_dict()["region"].values()))
+
+
+def test_get_nosourceexception(resources_folder):
+    with pytest.raises(NoSourceException):
+        LocalDeltaTable().get(context={"url": f"{resources_folder}/dummy/nosource"})
