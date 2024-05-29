@@ -6,7 +6,7 @@ from tgedr.dataops.validation.pandas import Impl
 
 
 @pytest.fixture
-def pandas_df() -> pd.DataFrame:
+def df() -> pd.DataFrame:
     return pd.DataFrame(
         {
             "id": [1, 2, 3, 4, 5, 6, 7],
@@ -25,7 +25,7 @@ def test_get_impl_x():
         assert type(Impl()) == type(DataValidation.get_impl("pandasx"))
 
 
-def test_pandas_validation_column_set(pandas_df):
+def test_validation_column_set(df):
     expectations = {
         "expectation_suite_name": "column_set",
         "expectations": [
@@ -38,11 +38,11 @@ def test_pandas_validation_column_set(pandas_df):
     }
     o = DataValidation.get_impl("pandas")
 
-    outcome = o.validate(df=pandas_df, expectations=expectations)
+    outcome = o.validate(df=df, expectations=expectations)
     assert outcome["success"] is True
 
 
-def test_pandas_validation_column_types(pandas_df):
+def test_validation_column_types(df):
     expectations = {
         "expectation_suite_name": "column_types",
         "expectations": [
@@ -65,5 +65,5 @@ def test_pandas_validation_column_types(pandas_df):
     }
     o = DataValidation.get_impl("pandas")
 
-    outcome = o.validate(df=pandas_df, expectations=expectations)
+    outcome = o.validate(df=df, expectations=expectations)
     assert outcome["success"] is True, [x["exception_info"] for x in outcome["results"]]

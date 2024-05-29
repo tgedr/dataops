@@ -6,7 +6,7 @@ import pandas as pd
 import pyarrow as pa
 
 from tgedr.dataops.store.fs_single_partition_parquet import FsSinglePartitionParquetStore
-from src.nn.gs.ss.dataops.commons.utils_fs import remove_s3_protocol
+from tgedr.dataops.commons.utils_fs import remove_s3_protocol
 
 
 logger = logging.getLogger(__name__)

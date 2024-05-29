@@ -42,8 +42,8 @@ data operations related code
 
 #### validation
 - __DataValidation__ : abstract class defining a `validate` method to perform data validation, currently using Great Expectations library
-- __pandas.Impl__ : __DataValidation__ implementation to validate pandas dataframes with Great Expectations library ([example](test/tgedr/dataops/validation/test_validation.py))
-
+- __pandas.Impl__ : __DataValidation__ implementation to validate pandas dataframes with Great Expectations library ([example](test/tgedr/dataops/validation/test_pandas.py))
+- __pyspark.Impl__ : __DataValidation__ implementation to validate pyspark dataframes with Great Expectations library ([example](test/tgedr/dataops/validation/test_pyspark.py))
 
 
 ## installation
