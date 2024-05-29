@@ -41,7 +41,7 @@ data operations related code
 - __SparkDeltaStore__ : __store__ implementation for pyspark distributed processing with delta table format ([example](test/tgedr/dataops/store/test_spark_delta.py))
 
 #### validation
-- __DataValidation__ : abstract class defining a `validate` method to perform data validation, currently using Great Expectations library
+- __DataValidation__ : abstract class defining a `validate` method to perform data validation, currently using [Great Expectations library](https://greatexpectations.io/expectations/)
 - __pandas.Impl__ : __DataValidation__ implementation to validate pandas dataframes with Great Expectations library ([example](test/tgedr/dataops/validation/test_pandas.py))
 - __pyspark.Impl__ : __DataValidation__ implementation to validate pyspark dataframes with Great Expectations library ([example](test/tgedr/dataops/validation/test_pyspark.py))
 
