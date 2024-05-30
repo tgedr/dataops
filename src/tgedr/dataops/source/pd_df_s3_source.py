@@ -19,6 +19,7 @@ class PdDfS3Source(AbstractS3FileSource):
     CONTEXT_KEY_COLUMN_NAMES = "column_names"
     CONTEXT_KEY_SCHEMA_TYPES = "schema_types"
     DEFAULT_FORMAT = "csv"
+    FORMATS = ["csv", "xlsx"]
     DEFAULT_SEPARATOR = ","
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -33,6 +34,23 @@ class PdDfS3Source(AbstractS3FileSource):
         if self.CONTEXT_KEY_URL not in context:
             raise SourceException(f"you must provide context for {self.CONTEXT_KEY_URL}")
 
+        format: str = self.DEFAULT_FORMAT
+        if self.CONTEXT_KEY_FILE_FORMAT in context:
+            format = context[self.CONTEXT_KEY_FILE_FORMAT]
+            if format not in self.FORMATS:
+                raise SourceException(f"[get] invalid format: {format}")
+
+        if "csv" == format:
+            result = self.__read_csv(context=context)
+        else:
+            result = self.__read_excel(context=context)
+
+        logger.info(f"[get|out] => {result}")
+        return result
+
+    def __read_csv(self, context: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+        logger.info(f"[__read_csv|in] ({context})")
+
         protocol, bucket, key = process_s3_url(context[self.CONTEXT_KEY_URL])
 
         obj = self._client.get_object(Bucket=bucket, Key=key)
@@ -45,7 +63,14 @@ class PdDfS3Source(AbstractS3FileSource):
             self.DEFAULT_SEPARATOR if self.CONTEXT_KEY_SEPARATOR not in context else context[self.CONTEXT_KEY_SEPARATOR]
         )
 
-        result = pd.read_csv(StringIO(data), sep=sep, header=header, names=names, dtype=dtype)
+        result: pd.DataFrame = pd.read_csv(StringIO(data), sep=sep, header=header, names=names, dtype=dtype)
 
-        logger.info(f"[get|out] => {result}")
+        logger.info(f"[__read_csv|out] => {result}")
+        return result
+
+    def __read_excel(self, context: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+        logger.info(f"[__read_excel|in] ({context})")
+        src = context[self.CONTEXT_KEY_URL]
+        result: pd.DataFrame = pd.read_excel(src, engine="openpyxl")
+        logger.info(f"[__read_excel|out] => {result}")
         return result

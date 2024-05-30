@@ -28,10 +28,11 @@ data operations related code
 - __Source__: abstract **source** class defining methods (`list` and `get`) to manage retrieval of data from somewhere as defined by implementing classes
 - __LocalFsFileSource__: __source__ class used to retrieve local objects/files to another local fs location ([example](test/tgedr/dataops/source/test_localfs_file_source.py))
 - __S3FileSource__: __source__ class used to retrieve objects/files from s3 bucket to local fs location ([example](test/tgedr/dataops/source/test_s3_file_source.py))
+- __S3FileExtendedSource__: __source__ class used to retrieve objects/files from s3 bucket to local fs location with the extra method `get_metadata` providing sile metadata ("LastModified", "ContentLength", "ETag", "VersionId", "ContentType")([example](test/tgedr/dataops/source/test_s3_file_extended_source.py))
 - __S3FileCopy__: __source__ class used to copy objects/files from an s3 bucket to another s3 bucket ([example](test/tgedr/dataops/source/test_s3_copy.py))
 - __S3DeltaTable__: __source__ class used to read delta lake format datasets from s3 bucket with python only, pyspark not needed, returning a pandas dataframe ([example](test/tgedr/dataops/source/test_s3_delta_table.py))
 - __LocalDeltaTable__: __source__ class used to read delta lake format datasets from local fs with python only, pyspark not needed, returning a pandas dataframe ([example](test/tgedr/dataops/source/test_local_delta_table.py))
-- __PdDfS3Source__: __source__ class used to read a pandas dataframe from, by default, a csv file in s3 ([example](test/tgedr/dataops/source/test_pd_df_s3_source.pypd))
+- __PdDfS3Source__: __source__ class used to read a pandas dataframe from s3, whether a csv or an excel (xslx) file ([example csv](test/tgedr/dataops/source/test_pd_df_s3_source_csv.py), [example excel](test/tgedr/dataops/source/test_pd_df_s3_source_excel.py))
 
 #### store
 - __Store__ : abstract class used to manage persistence, defining CRUD-like (CreateReadUpdateDelete) methods

@@ -6,6 +6,7 @@ autoflake==2.2.1
 black~=23.11.0
 isort~=5.12.0
 pytest-cov==4.1.0
+pytest-mock==3.14.0
 moto==5.0.7
 # --- package ---
 # pandas note:
@@ -19,3 +20,4 @@ great_expectations==0.18.10
 pyspark~=3.3.0
 delta-spark~=2.3.0
 deltalake~=0.16.4
+openpyxl==3.1.2

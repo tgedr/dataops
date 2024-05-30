@@ -22,21 +22,6 @@ class S3FileSource(Source, S3Connector):
         Source.__init__(self, config=config)
         S3Connector.__init__(self)
 
-    def __derive_local_file(self, target: str, isdir: bool, file: str):
-        logger.debug(f"[__derive_local_file|in] ({target}, {isdir}, {file})")
-
-        if isdir:
-            result = os.path.join(target, file)
-            basedir = os.path.dirname(result)
-            if not os.path.exists(basedir):
-                logger.debug(f"[__derive_local_file] creating folder: {basedir}")
-                os.mkdir(basedir)
-        else:
-            result = target
-
-        logger.debug(f"[__derive_local_file|out] => {result}")
-        return result
-
     def list(self, context: Optional[Dict[str, Any]] = None) -> List[str]:
         logger.info(f"[list|in] ({context})")
 
