@@ -164,3 +164,4 @@ cython_debug/
 .vscode
 tests-results.xml
 .DS_Store
+spark-warehouse/
