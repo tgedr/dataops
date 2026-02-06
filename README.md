@@ -8,7 +8,8 @@
 data operations related code
 
 ## motivation
-*data-ops* is a library with tested and used code aligning on some standards regarding code structure and quality and to avoid reinventing the wheel
+*data-ops* is a library with tested and used code aligning on some standards regarding code structure and quality and to avoid reinventing the wheel.
+It builds on top of *dataops-abs*.
 
 ## installation
         `pip install tgedr-dataops`
@@ -39,7 +40,11 @@ data operations related code
 - __FsSinglePartitionParquetStore__ : abstract __Store__ implementation defining persistence on parquet files with an optional single partition, regardless of the location it should persist
 - __LocalFsSinglePartitionParquetStore__ : __FsSinglePartitionParquetStore__ implementation using local file system ([example](tests/tgedr_dataops/store/test_local_fs_single_partition_parquet.py))
 - __S3FsSinglePartitionParquetStore__ : __FsSinglePartitionParquetStore__ implementation using aws s3 file system ([example](tests/tgedr_dataops/store/MANUAL_test_s3_single_partition_parquet.py))
+- __ParquetStore__ : __Store__ implementation class for interacting with Parquet files using a filesystem interface ([example](tests/tgedr_dataops/store/test_parquet_store.py))
 
+## known issues/further development
+
+- update data while changing its partition value ([check unit test](tests/tgedr_dataops/store/test_parquet_store.py#L175))
 
 ## development
 - main requirements:
@@ -52,5 +57,6 @@ data operations related code
   ```
 - cd into the folder: `cd dataops`
 - install requirements: `./helper.sh reqs`
+
 
 
