@@ -33,7 +33,8 @@ def temp_dir(root: str | None = None, suffix: str | None = None, prefix: str | N
 
 
 def temp_file(
-    root: str | None = None, suffix: str | None = None, prefix: str | None = None, discard_handle: bool = True  # noqa: FBT001, FBT002
+    root: str | None = None, suffix: str | None = None, prefix: str | None = None,
+    discard_handle: bool = True
 ) -> str | tuple[int, str]:
     """Create a temporary file and return its path or handle and path.
 

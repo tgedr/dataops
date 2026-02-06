@@ -18,6 +18,13 @@ class S3Connector:
 
     @property
     def _session(self) -> boto3.Session:
+        """Get or create a boto3 session.
+
+        Returns
+        -------
+        boto3.Session
+            The boto3 session instance, using credentials if configured.
+        """
         if self.__session is None:
             if "1" == os.getenv("S3_CONNECTOR_USE_CREDENTIALS", default="0"):
                 self.__session = boto3.Session(
@@ -33,12 +40,26 @@ class S3Connector:
 
     @property
     def _resource(self) -> boto3.resources.base.ServiceResource:
+        """Get or create an S3 resource.
+
+        Returns
+        -------
+        boto3.resources.base.ServiceResource
+            The boto3 S3 resource instance.
+        """
         if self.__resource is None:
             self.__resource = self._session.resource("s3")
         return self.__resource
 
     @property
     def _client(self) -> boto3.client:
+        """Get or create an S3 client.
+
+        Returns
+        -------
+        boto3.client
+            The boto3 S3 client instance.
+        """
         if self.__client is None:
             self.__client = self._session.client("s3")
         return self.__client

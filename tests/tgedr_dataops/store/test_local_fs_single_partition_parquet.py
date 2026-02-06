@@ -37,7 +37,7 @@ def test_00_schema():
     assert 3 == STORE.get(dataset_path, schema=schema).shape[0]
 
     filter_condition = ~pc.is_in(pc.field("id"), value_set=pa.array([2, 3]))
-    assert 1 == STORE.get(dataset_path, filter=filter_condition, schema=schema).shape[0]
+    assert 1 == STORE.get(dataset_path, filter_func=filter_condition, schema=schema).shape[0]
 
     filters = [("country", "in", ["dk"])]
     assert 1 == STORE.get(dataset_path, filters=filters, schema=schema).shape[0]
@@ -57,7 +57,7 @@ def test_01_save():
 
     filter_condition = ~pc.is_in(pc.field("id"), value_set=pa.array([2, 3]))
 
-    assert 5 == STORE.get(DATASET_PATH, filter=filter_condition).shape[0]
+    assert 5 == STORE.get(DATASET_PATH, filter_func=filter_condition).shape[0]
 
     filters = [("country", "in", ["us", "pt"])]
     assert 4 == STORE.get(DATASET_PATH, filters=filters).shape[0]

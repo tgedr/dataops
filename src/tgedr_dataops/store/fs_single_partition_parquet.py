@@ -6,8 +6,8 @@ filesystem implementations (local, S3, etc.).
 """
 from abc import ABC, abstractmethod
 import logging
-import os
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -19,7 +19,7 @@ from tgedr_dataops_abs.store import Store, StoreException
 logger = logging.getLogger(__name__)
 
 
-def pandas_mapper(arrow_type) -> pd.api.extensions.ExtensionDtype | None:
+def pandas_mapper(arrow_type: pa.DataType) -> pd.api.extensions.ExtensionDtype | None:
     """Map PyArrow types to pandas nullable types.
 
     Parameters
@@ -51,7 +51,7 @@ class FsSinglePartitionParquetStore(Store, ABC):
 
     @property
     @abstractmethod
-    def fs(self):
+    def fs(self) -> Any:
         """Abstract property providing a filesystem implementation.
 
         Returns
@@ -59,10 +59,10 @@ class FsSinglePartitionParquetStore(Store, ABC):
         Any
             Filesystem implementation (e.g., LocalFileSystem, S3FileSystem).
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
-    def _rmdir(self, key):
+    def _rmdir(self, key: str) -> None:
         """Remove a directory.
 
         Parameters
@@ -70,10 +70,10 @@ class FsSinglePartitionParquetStore(Store, ABC):
         key : str
             Directory path to remove.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
-    def _exists(self, key) -> bool:
+    def _exists(self, key: str) -> bool:
         """Check if a path exists.
 
         Parameters
@@ -86,18 +86,25 @@ class FsSinglePartitionParquetStore(Store, ABC):
         bool
             True if path exists, False otherwise.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        """Initialize the FsSinglePartitionParquetStore.
+
+        Parameters
+        ----------
+        config : dict[str, Any], optional
+            Configuration dictionary.
+        """
         Store.__init__(self, config)
         self._fs = None
 
     def get(
         self,
         key: str,
-        filter: callable = None,
-        filters: list[tuple[str, str, list[str]]] = None,
-        schema: pa.Schema = None,
+        filter_func: Any | None = None,
+        filters: list[tuple[str, str, list[str]]] | None = None,
+        schema: pa.Schema | None = None,
     ) -> pd.DataFrame:
         """Read a pandas DataFrame from Parquet storage.
 
@@ -108,7 +115,7 @@ class FsSinglePartitionParquetStore(Store, ABC):
         ----------
         key : str
             Location/URL/path where data is persisted.
-        filter : callable, optional
+        filter_func : callable, optional
             Filter expression (see PyArrow Table.filter documentation).
         filters : list[tuple[str, str, list[str]]], optional
             Filter expression for read_table (see PyArrow parquet.read_table documentation).
@@ -121,11 +128,11 @@ class FsSinglePartitionParquetStore(Store, ABC):
             The loaded DataFrame.
         """
         schema_msg_segment = "0" if schema is None else str(len(schema))
-        logger.info(f"[get|in] ({key}, {filter}, {filters}, schema len:{schema_msg_segment})")
-        logger.debug(f"[get|in] ({key}, {filter}, {filters}, {schema})")
+        logger.info(f"[get|in] ({key}, {filter_func}, {filters}, schema len:{schema_msg_segment})")
+        logger.debug(f"[get|in] ({key}, {filter_func}, {filters}, {schema})")
         table = pq.read_table(key, filesystem=self.fs, filters=filters, schema=schema)
-        if filter is not None:
-            table = table.filter(filter)
+        if filter_func is not None:
+            table = table.filter(filter_func)
         result = table.to_pandas(types_mapper=pandas_mapper)
         logger.info(f"[get|out] => {result.shape}")
         return result
@@ -133,11 +140,11 @@ class FsSinglePartitionParquetStore(Store, ABC):
     def delete(
         self,
         key: str,
-        partition_field: Optional[str] = None,
-        partition_values: Optional[list[str]] = None,
-        kv_dict: Optional[dict[str, list[Any]]] = None,
+        partition_field: str | None = None,
+        partition_values: list[str] | None = None,
+        kv_dict: dict[str, list[Any]] | None = None,
         schema: pa.Schema = None,
-    ):
+    ) -> None:
         """Delete partitions or data from Parquet storage.
 
         Removes partitions (full or partial), deletes specific values, or removes
@@ -187,11 +194,11 @@ class FsSinglePartitionParquetStore(Store, ABC):
         self,
         df: pd.DataFrame,
         key: str,
-        partition_field: Optional[str] = None,
+        partition_field: str | None = None,
         append: bool = False,
         replace_partitions: bool = False,
         schema: Any = None,
-    ):
+    ) -> None:
         """Save a pandas DataFrame in Parquet format.
 
         Saves data to the specified location with optional partitioning,
@@ -225,11 +232,11 @@ class FsSinglePartitionParquetStore(Store, ABC):
 
         if schema is not None and isinstance(schema, pa.lib.Schema):
             # we will order the columns based on the schema
-            columns = [col for col in schema.names]
+            columns = list(schema.names)
             df = df[columns]
 
         if replace_partitions and append:
-            raise StoreException(f"cannot request for replace_partitions and append at the same time")
+            raise StoreException("cannot request for replace_partitions and append at the same time")
 
         if append:
             pq.write_to_dataset(
@@ -262,7 +269,7 @@ class FsSinglePartitionParquetStore(Store, ABC):
             )
         logger.info("[save|out]")
 
-    def _remove_partitions(self, key: str, partition_field: str, partition_values: list[str]):
+    def _remove_partitions(self, key: str, partition_field: str, partition_values: list[str]) -> None:
         """Remove specific partitions from the dataset.
 
         Parameters
@@ -278,7 +285,7 @@ class FsSinglePartitionParquetStore(Store, ABC):
 
         for partition_value in partition_values:
             partition_key = f"{partition_field}={partition_value}"
-            partition_path = os.path.join(key, partition_key)
+            partition_path = str(Path(key) / partition_key)
             self._rmdir(partition_path)
 
         logger.debug("[_remove_partitions|out]")
@@ -288,9 +295,9 @@ class FsSinglePartitionParquetStore(Store, ABC):
         df: pd.DataFrame,
         key: str,
         key_fields: list[str],
-        partition_field: Optional[str] = None,
+        partition_field: str | None = None,
         schema: Any = None,
-    ):
+    ) -> None:
         """Update rows in a pandas DataFrame stored in Parquet format.
 
         Updates matching rows based on key fields by merging with existing data.
@@ -321,4 +328,4 @@ class FsSinglePartitionParquetStore(Store, ABC):
         df0.iloc[index_left] = df.iloc[index_right]
         self.save(df0, key, partition_field=partition_field, schema=schema)
 
-        logger.info(f"[update|out]")
+        logger.info("[update|out]")

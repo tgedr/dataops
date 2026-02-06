@@ -5,7 +5,7 @@ This module provides:
 """
 from abc import ABC
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from tgedr_dataops.commons.s3_connector import S3Connector
 from tgedr_dataops.commons.utils_fs import process_s3_url
@@ -16,16 +16,40 @@ logger = logging.getLogger()
 
 
 class AbstractS3FileSource(Source, S3Connector, ABC):
-    """abstract class used to read file sources from s3"""
+    """abstract class used to read file sources from s3."""
 
     CONTEXT_KEY_URL = "url"
     CONTEXT_KEY_SUFFIX = "suffix"
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        """Initialize the S3 file source.
+
+        Parameters
+        ----------
+        config : dict[str, Any], optional
+            Configuration dictionary for the source.
+        """
         Source.__init__(self, config=config)
         S3Connector.__init__(self)
 
-    def list(self, context: Optional[dict[str, Any]] = None) -> list[str]:
+    def list(self, context: dict[str, Any] | None = None) -> list[str]:
+        """List objects in the S3 bucket.
+
+        Parameters
+        ----------
+        context : dict[str, Any], optional
+            Context dictionary containing 'source' S3 URL.
+
+        Returns
+        -------
+        list[str]
+            List of S3 object keys in the source bucket/prefix.
+
+        Raises
+        ------
+        SourceException
+            If source context is missing.
+        """
         logger.info(f"[list|in] ({context})")
 
         result: list[str] = []
