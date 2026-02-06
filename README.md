@@ -48,9 +48,9 @@ data operations related code
 - Clone the repository like this:
 
   ``` bash
-  git clone git@github.com:tgedr/pycommons
+  git clone git@github.com:tgedr/dataops
   ```
-- cd into the folder: `cd pycommons`
+- cd into the folder: `cd dataops`
 - install requirements: `./helper.sh reqs`
 
 
