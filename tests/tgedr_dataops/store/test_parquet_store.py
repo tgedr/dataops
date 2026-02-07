@@ -149,9 +149,10 @@ def test_save_delete_file(tmp_dir, data):  # noqa: ANN001, ANN201, D103
         o.get(file)  # Should raise FileNotFoundError since the file has been deleted
 
 def test_update_with_partition_no_data_yet(tmp_dir, data):  # noqa: ANN001, ANN201, D103
+    file_path = f"{tmp_dir}/test_update_with_partition_no_data_yet.parquet"
     o = ParquetStore()
-    o.update(df=data, key=tmp_dir, key_fields=["name"], partition_fields=["country"])
-    df = o.get(tmp_dir).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
+    o.update(df=data, key=file_path, key_fields=["name"], partition_fields=["country"])
+    df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
     assert_frame_equal(df, data, check_categorical=False, check_dtype=False)
 
 def test_update_with_partition_existing_field(tmp_dir, data):  # noqa: ANN001, ANN201, D103

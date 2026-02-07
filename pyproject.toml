@@ -1,6 +1,6 @@
 [project]
 name = "tgedr-dataops"
-version = "1.0.4"
+version = "1.0.5"
 description = "data operations related code"
 authors = [
     {name = "joao tiago viegas",email = "3536754+jtviegas@users.noreply.github.com"}

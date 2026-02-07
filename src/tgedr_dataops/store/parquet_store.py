@@ -161,7 +161,11 @@ class ParquetStore(Store, ABC):
         )
         logger.debug(f"[update|in] ({df}, {key}, {key_fields}, {partition_fields})")
 
-        df0 = self.get(key)
+        try:
+            df0 = self.get(key) # circumvent the case where the file doesn't exist yet
+        except FileNotFoundError:
+            df0 = pd.DataFrame()
+
         if df0.empty:
             logger.info(f"[update] no existing data at {key}, saving new data")
             self.save(df, key, partition_fields=partition_fields)
