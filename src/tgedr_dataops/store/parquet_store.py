@@ -162,10 +162,25 @@ class ParquetStore(Store, ABC):
         logger.debug(f"[update|in] ({df}, {key}, {key_fields}, {partition_fields})")
 
         df0 = self.get(key)
-        match = pd.merge(df0.reset_index(), df.reset_index(), on=key_fields)
-        index_left = match["index_x"]
-        index_right = match["index_y"]
-        df0.iloc[index_left] = df.iloc[index_right]
-        self.save(df0, key, partition_fields=partition_fields)
+        if df0.empty:
+            logger.info(f"[update] no existing data at {key}, saving new data")
+            self.save(df, key, partition_fields=partition_fields)
+        else:
+            match = pd.merge(df0.reset_index(), df.reset_index(), on=key_fields)
+            if match.empty:
+                logger.info(f"[update] no matching rows found for key fields {key_fields}, appending new data")
+                self.save(df, key, partition_fields=partition_fields, append=True)
+            else:
+                index_left = match["index_x"]
+                index_right = match["index_y"]
+                # update matching rows
+                df0.iloc[index_left] = df.iloc[index_right]
+                if len(match) < len(df):
+                    logger.info(
+                        f"[update] some rows not matched for key fields {key_fields}, appending unmatched rows"
+                    )
+                    df_unmatched = df.iloc[~index_right]
+                    df0 = pd.concat([df0, df_unmatched], ignore_index=True)
+                self.save(df0, key, partition_fields=partition_fields)
 
         logger.info("[update|out]")

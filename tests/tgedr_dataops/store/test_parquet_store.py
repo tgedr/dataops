@@ -57,18 +57,21 @@ def test_append_same(tmp_dir, data):  # noqa: ANN001, ANN201, D103
     o = ParquetStore()
     o.save(data, tmp_dir, ["country"])
     df = o.get(tmp_dir).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
-    o.save(df, tmp_dir, ["country"])
+    o.save(df, tmp_dir, ["country"], append=True)
     df = o.get(tmp_dir).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
-    assert_frame_equal(df, data, check_categorical=False, check_dtype=False)
+    
+    expected_data = pd.concat([data, data], ignore_index=True).sort_values(by="name", ascending=True).reset_index(drop=True)
+    assert_frame_equal(df, expected_data, check_categorical=False, check_dtype=False)
 
 def test_append_same_no_partitions(tmp_dir, data):  # noqa: ANN001, ANN201, D103
     file_path = f"{tmp_dir}/test_append_same_no_partitions.parquet"
     o = ParquetStore()
     o.save(data, file_path)
     df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
-    o.save(df, file_path)
+    o.save(df, file_path, append=True)
     df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
-    assert_frame_equal(df, data, check_categorical=False, check_dtype=False)
+    expected_data = pd.concat([data, data], ignore_index=True).sort_values(by="name", ascending=True).reset_index(drop=True)
+    assert_frame_equal(df, expected_data, check_categorical=False, check_dtype=False)
 
 
 def test_append_more(tmp_dir, data):  # noqa: ANN001, ANN201, D103
@@ -98,6 +101,7 @@ def test_just_append(tmp_dir, data):  # noqa: ANN001, ANN201, D103
     expected_data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie", "Dalila"],
                                    "age": [30, 25, 35, 38], "country": ["ES", "DE", "DK", "US"]})
     assert_frame_equal(df, expected_data, check_categorical=False, check_dtype=False)
+
 
 def test_append_more_no_partitions(tmp_dir, data):  # noqa: ANN001, ANN201, D103
     file_path = f"{tmp_dir}/test_append_more_no_partitions.parquet"
@@ -144,31 +148,85 @@ def test_save_delete_file(tmp_dir, data):  # noqa: ANN001, ANN201, D103
     with pytest.raises(FileNotFoundError):
         o.get(file)  # Should raise FileNotFoundError since the file has been deleted
 
-def test_update(tmp_dir, data):  # noqa: ANN001, ANN201, D103
+def test_update_with_partition_no_data_yet(tmp_dir, data):  # noqa: ANN001, ANN201, D103
+    o = ParquetStore()
+    o.update(df=data, key=tmp_dir, key_fields=["name"], partition_fields=["country"])
+    df = o.get(tmp_dir).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
+    assert_frame_equal(df, data, check_categorical=False, check_dtype=False)
+
+def test_update_with_partition_existing_field(tmp_dir, data):  # noqa: ANN001, ANN201, D103
     file_path = f"{tmp_dir}/test_update.parquet"
     o = ParquetStore()
-    data_new = pd.DataFrame({"name": ["Alice", "Bob", "Charlie", "Dalila"],
-                                   "age": [30, 25, 35, 38], "country": ["ES", "DE", "DK", "US"]})
-    o.save(data_new, file_path, partition_fields=["country"])
-    data_update = pd.DataFrame({"name": ["Alice"], "age": [28], "country": ["ES"]})
-    o.update(data_update, file_path, key_fields=["name"], partition_fields=["country"])
+    o.save(data, file_path, partition_fields=["country"])
 
-    expected_data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie", "Dalila"],
-                                   "age": [28, 25, 35, 38], "country": ["ES", "DE", "DK", "US"]})
+    data_update = pd.DataFrame({"name": ["Alice"], "age": [37], "country": ["ES"]})
+    o.update(df=data_update, key=file_path, key_fields=["name"], partition_fields=["country"])
+    expected_data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie"],
+                                   "age": [37, 25, 35], "country": ["ES", "DE", "DK"]})
     df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
     assert_frame_equal(df, expected_data, check_categorical=False, check_dtype=False)
 
-def test_update_no_partition(tmp_dir, data):  # noqa: ANN001, ANN201, D103
+def test_update_with_partition_non_existing_field(tmp_dir, data):  # noqa: ANN001, ANN201, D103
     file_path = f"{tmp_dir}/test_update.parquet"
     o = ParquetStore()
-    data_new = pd.DataFrame({"name": ["Alice", "Bob", "Charlie", "Dalila"],
-                                   "age": [30, 25, 35, 38], "country": ["ES", "DE", "DK", "US"]})
-    o.save(data_new, file_path)
-    data_update = pd.DataFrame({"name": ["Alice"], "age": [28], "country": ["PT"]})
+    o.save(data, file_path, partition_fields=["country"])
+
+    data_update = pd.DataFrame({"name": ["Donacha"], "age": [47], "country": ["ES"]})
+    o.update(df=data_update, key=file_path, key_fields=["name"], partition_fields=["country"])
+    expected_data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie", "Donacha"],
+                                   "age": [30, 25, 35, 47], "country": ["ES", "DE", "DK", "ES"]})
+    df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
+    assert_frame_equal(df, expected_data, check_categorical=False, check_dtype=False)
+
+def test_update_with_partition_existing_and_non_existing_field(tmp_dir, data):  # noqa: ANN001, ANN201, D103
+    file_path = f"{tmp_dir}/test_update.parquet"
+    o = ParquetStore()
+    o.save(data, file_path, partition_fields=["country"])
+
+    data_update = pd.DataFrame({"name": ["Alice", "Donacha"], "age": [28, 47], "country": ["ES", "ES"]})
+    o.update(data_update, file_path, key_fields=["name"], partition_fields=["country"])
+
+    expected_data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie", "Donacha"],
+                                   "age": [28, 25, 35, 47], "country": ["ES", "DE", "DK", "ES"]})
+    df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
+    assert_frame_equal(df, expected_data, check_categorical=False, check_dtype=False)
+
+
+
+def test_update_no_partition_existing_field(tmp_dir, data):  # noqa: ANN001, ANN201, D103
+    file_path = f"{tmp_dir}/test_update.parquet"
+    o = ParquetStore()
+    o.save(data, file_path)
+
+    data_update = pd.DataFrame({"name": ["Alice"], "age": [37], "country": ["ES"]})
+    o.update(df=data_update, key=file_path, key_fields=["name"])
+    expected_data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie"],
+                                   "age": [37, 25, 35], "country": ["ES", "DE", "DK"]})
+    df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
+    assert_frame_equal(df, expected_data, check_categorical=False, check_dtype=False)
+
+def test_update_no_partition_non_existing_field(tmp_dir, data):  # noqa: ANN001, ANN201, D103
+    file_path = f"{tmp_dir}/test_update.parquet"
+    o = ParquetStore()
+    o.save(data, file_path)
+
+    data_update = pd.DataFrame({"name": ["Donacha"], "age": [47], "country": ["ES"]})
+    o.update(df=data_update, key=file_path, key_fields=["name"])
+    expected_data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie", "Donacha"],
+                                   "age": [30, 25, 35, 47], "country": ["ES", "DE", "DK", "ES"]})
+    df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
+    assert_frame_equal(df, expected_data, check_categorical=False, check_dtype=False)
+
+def test_update_no_partition_existing_and_non_existing_field(tmp_dir, data):  # noqa: ANN001, ANN201, D103
+    file_path = f"{tmp_dir}/test_update.parquet"
+    o = ParquetStore()
+    o.save(data, file_path)
+
+    data_update = pd.DataFrame({"name": ["Alice", "Donacha"], "age": [28, 47], "country": ["ES", "ES"]})
     o.update(data_update, file_path, key_fields=["name"])
 
-    expected_data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie", "Dalila"],
-                                   "age": [28, 25, 35, 38], "country": ["PT", "DE", "DK", "US"]})
+    expected_data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie", "Donacha"],
+                                   "age": [28, 25, 35, 47], "country": ["ES", "DE", "DK", "ES"]})
     df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
     assert_frame_equal(df, expected_data, check_categorical=False, check_dtype=False)
 
