@@ -155,6 +155,18 @@ def test_update_with_partition_no_data_yet(tmp_dir, data):  # noqa: ANN001, ANN2
     df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
     assert_frame_equal(df, data, check_categorical=False, check_dtype=False)
 
+def test_update_with_partition_multiple_keyfields(tmp_dir, data):  # noqa: ANN001, ANN201, D103
+    file_path = f"{tmp_dir}/test_update.parquet"
+    o = ParquetStore()
+    o.save(data, file_path, partition_fields=["country"])
+
+    data_update = pd.DataFrame({"name": ["Alice"], "age": [37], "country": ["ES"]})
+    o.update(df=data_update, key=file_path, key_fields=["name"], partition_fields=["country"])
+    expected_data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie"],
+                                   "age": [37, 25, 35], "country": ["ES", "DE", "DK"]})
+    df = o.get(file_path).sort_values(by="name", ascending=True).reset_index(drop=True)  # noqa: PD901
+    assert_frame_equal(df, expected_data, check_categorical=False, check_dtype=False)
+
 def test_update_with_partition_existing_field(tmp_dir, data):  # noqa: ANN001, ANN201, D103
     file_path = f"{tmp_dir}/test_update.parquet"
     o = ParquetStore()
@@ -238,6 +250,6 @@ def test_update_creating_partition(tmp_dir, data):  # noqa: ANN001, ANN201, D103
                                    "age": [30, 25, 35, 38], "country": ["ES", "DE", "DK", "US"]})
     o.save(data_new, file_path, partition_fields=["country"])
     data_update = pd.DataFrame({"name": ["Alice"], "age": [28], "country": ["PT"]})
-    # TODO - implement logic to pass this test
+    # TODO(jtv): implement logic to pass this test
     with pytest.raises(TypeError, match="Cannot setitem on a Categorical with a new category, set the categories first"):
         o.update(data_update, file_path, key_fields=["name"], partition_fields=["country"])
