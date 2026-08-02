@@ -264,6 +264,33 @@ def test_get_success(splits, train_df, test_df, validation_df):  # noqa: ANN001,
     assert_frame_equal(result.validation, validation_df)
 
 
+def test_get_drops_index_level_0_column(train_df, test_df, validation_df):  # noqa: ANN001, ANN201, D103
+    # A non-default index on the DataFrame produces an "__index_level_0__" column
+    # after a Dataset round-trip; get() should strip it.
+    indexed_train = train_df.copy()
+    indexed_train.index = [5, 7]
+
+    mock_ds = DatasetDict(
+        {
+            "train": Dataset.from_pandas(indexed_train),
+            "test": Dataset.from_pandas(test_df),
+            "validation": Dataset.from_pandas(validation_df),
+        }
+    )
+    store = HuggingFaceDatasetStore()
+
+    with patch("src.tgedr_dataops.store.hf_dataset.load_dataset", return_value=mock_ds) as mock_load:
+        result = store.get(key="some/key")
+
+    mock_load.assert_called_once_with("some/key")
+    assert "__index_level_0__" not in result.train.columns
+    assert "__index_level_0__" not in result.test.columns
+    assert "__index_level_0__" not in result.validation.columns
+    assert_frame_equal(result.train, train_df)
+    assert_frame_equal(result.test, test_df)
+    assert_frame_equal(result.validation, validation_df)
+
+
 def test_get_dataset_not_found():  # noqa: ANN201, D103
     store = HuggingFaceDatasetStore()
 

@@ -172,11 +172,11 @@ class DataFrameSplits:
         """
         ds_dict = {}
         if self.train is not None:
-            ds_dict["train"] = Dataset.from_pandas(self.train)
+            ds_dict["train"] = Dataset.from_pandas(self.train.reset_index(drop=True))
         if self.validation is not None:
-            ds_dict["validation"] = Dataset.from_pandas(self.validation)
+            ds_dict["validation"] = Dataset.from_pandas(self.validation.reset_index(drop=True))
         if self.test is not None:
-            ds_dict["test"] = Dataset.from_pandas(self.test)
+            ds_dict["test"] = Dataset.from_pandas(self.test.reset_index(drop=True))
 
         ds = DatasetDict(ds_dict)
         return ds
@@ -236,7 +236,10 @@ class HuggingFaceDatasetStore(Store):
         ds_dict = {}
 
         for split in ds:
-            ds_dict[split] = ds[split].to_pandas()
+            df = ds[split].to_pandas()
+            if "__index_level_0__" in df.columns:
+                df = df.drop(columns=["__index_level_0__"])
+            ds_dict[split] = df
 
         result = DataFrameSplits.from_dict(ds_dict)
         logger.info(f"[get|out] => shape: {result.shape}")
