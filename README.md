@@ -37,7 +37,9 @@ It builds on top of *dataops-abs*.
 - __S3FileSource__: __Source__ implementation class used to retrieve objects/files from s3 bucket to local fs location ([example](tests/tgedr_dataops/source/test_s3_file_source.py))
 
 #### store
+- __DataFrameSplits__ : dataclass container for `train`, `test`, and optional `validation` pandas DataFrames, providing helpers to build, merge, and convert splits to/from Hugging Face datasets
 - __FsSinglePartitionParquetStore__ : abstract __Store__ implementation defining persistence on parquet files with an optional single partition, regardless of the location it should persist
+- __HuggingFaceDatasetStore__ : __Store__ implementation class for interacting with Hugging Face Hub datasets, supporting CRUD operations on datasets and their splits ([example](tests/tgedr_dataops/store/test_hf_dataset.py))
 - __LocalFsSinglePartitionParquetStore__ : __FsSinglePartitionParquetStore__ implementation using local file system ([example](tests/tgedr_dataops/store/test_local_fs_single_partition_parquet.py))
 - __S3FsSinglePartitionParquetStore__ : __FsSinglePartitionParquetStore__ implementation using aws s3 file system ([example](tests/tgedr_dataops/store/MANUAL_test_s3_single_partition_parquet.py))
 - __ParquetStore__ : __Store__ implementation class for interacting with Parquet files using a filesystem interface ([example](tests/tgedr_dataops/store/test_parquet_store.py))
