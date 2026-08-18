@@ -22,7 +22,7 @@ def test_00_schema():
         [
             pa.field("id", pa.int64()),
             pa.field("value", pa.int64()),
-            pa.field("country", pa.large_string()),
+            pa.field("country", pa.string()),
         ]
     )
 
@@ -150,8 +150,8 @@ def test_10_schema_with_float_and_string():
         [
             pa.field("id", pa.int64()),
             pa.field("price", pa.float64()),
-            pa.field("name", pa.large_string()),
-            pa.field("category", pa.large_string()),
+            pa.field("name", pa.string()),
+            pa.field("category", pa.string()),
         ]
     )
 
