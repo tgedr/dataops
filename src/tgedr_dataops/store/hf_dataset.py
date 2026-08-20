@@ -120,6 +120,7 @@ class DataFrameSplits:
         """Combine train, test, and validation DataFrames into the current DataFrameSplits instance."""
         if df.train is not None and self.train is not None:
             self.train = pd.concat([self.train, df.train], ignore_index=True)
+            self.train = self.train.drop_duplicates().reset_index(drop=True)
         elif df.train is not None:
             self.train = df.train
         elif self.train is not None:
@@ -127,6 +128,7 @@ class DataFrameSplits:
 
         if df.validation is not None and self.validation is not None:
             self.validation = pd.concat([self.validation, df.validation], ignore_index=True)
+            self.validation = self.validation.drop_duplicates().reset_index(drop=True)
         elif df.validation is not None:
             self.validation = df.validation
         elif self.validation is not None:
@@ -134,6 +136,7 @@ class DataFrameSplits:
 
         if df.test is not None and self.test is not None:
             self.test = pd.concat([self.test, df.test], ignore_index=True)
+            self.test = self.test.drop_duplicates().reset_index(drop=True)
         elif df.test is not None:
             self.test = df.test
         elif self.test is not None:

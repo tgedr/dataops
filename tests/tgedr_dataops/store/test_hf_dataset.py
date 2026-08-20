@@ -19,15 +19,26 @@ from src.tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatas
 def train_df() -> pd.DataFrame:  # noqa: D103
     return pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
 
+@pytest.fixture
+def train_df2() -> pd.DataFrame:  # noqa: D103
+    return pd.DataFrame({"name": ["Paul", "Marylin"], "age": [20, 15]})
 
 @pytest.fixture
 def test_df() -> pd.DataFrame:  # noqa: D103
     return pd.DataFrame({"name": ["Charlie"], "age": [35]})
 
+@pytest.fixture
+def test_df2() -> pd.DataFrame:  # noqa: D103
+    return pd.DataFrame({"name": ["Mauro"], "age": [39]})
+
 
 @pytest.fixture
 def validation_df() -> pd.DataFrame:  # noqa: D103
     return pd.DataFrame({"name": ["Dalila"], "age": [38]})
+
+@pytest.fixture
+def validation_df2() -> pd.DataFrame:  # noqa: D103
+    return pd.DataFrame({"name": ["Elena"], "age": [28]})
 
 
 @pytest.fixture
@@ -361,21 +372,22 @@ def test_save(splits):  # noqa: ANN001, ANN201, D103
     mock_to_ds.return_value.push_to_hub.assert_called_once_with("owner/dataset")
 
 
-def test_update_append(splits, train_df, test_df, validation_df):  # noqa: ANN001, ANN201, D103
+def test_update_append(splits, train_df, test_df, validation_df, train_df2):  # noqa: ANN001, ANN201, D103
     store = HuggingFaceDatasetStore()
 
+    dfs_2: DataFrameSplits = DataFrameSplits(train=train_df2, test=test_df, validation=validation_df)  # noqa: SLF001
     with (
         patch.object(store, "get", return_value=splits) as mock_get,
         patch.object(store, "save") as mock_save,
     ):
-        store.update(df=splits, key="owner/dataset", append=True)
+        store.update(df=dfs_2, key="owner/dataset", append=True)
 
     mock_get.assert_called_once_with(key="owner/dataset")
     mock_save.assert_called_once()
     saved_dfs = mock_save.call_args[0][0]
-    assert_frame_equal(saved_dfs.train, pd.concat([train_df, train_df], ignore_index=True))
-    assert_frame_equal(saved_dfs.test, pd.concat([test_df, test_df], ignore_index=True))
-    assert_frame_equal(saved_dfs.validation, pd.concat([validation_df, validation_df], ignore_index=True))
+    assert_frame_equal(saved_dfs.train, pd.concat([train_df, train_df2], ignore_index=True))
+    assert_frame_equal(saved_dfs.test, test_df)
+    assert_frame_equal(saved_dfs.validation, validation_df)
 
 
 def test_update_no_append(splits):  # noqa: ANN001, ANN201, D103
