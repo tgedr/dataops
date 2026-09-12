@@ -1,6 +1,3 @@
-
-
-
 # Copyright (c) 2023 tgedr contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -37,6 +34,7 @@ from tgedr_dataops_abs.store import Store, NoStoreException
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class DataFrameSplits:
     """Container for train, test, and optional validation DataFrames.
@@ -72,17 +70,21 @@ class DataFrameSplits:
             return False
 
         return (
-            self.train.equals(other.train)
-            if self.train is not None and other.train is not None
-            else self.train is None and other.train is None
-        ) and (
-            self.test.equals(other.test)
-            if self.test is not None and other.test is not None
-            else self.test is None and other.test is None
-        ) and (
-            self.validation.equals(other.validation)
-            if self.validation is not None and other.validation is not None
-            else self.validation is None and other.validation is None
+            (
+                self.train.equals(other.train)
+                if self.train is not None and other.train is not None
+                else self.train is None and other.train is None
+            )
+            and (
+                self.test.equals(other.test)
+                if self.test is not None and other.test is not None
+                else self.test is None and other.test is None
+            )
+            and (
+                self.validation.equals(other.validation)
+                if self.validation is not None and other.validation is not None
+                else self.validation is None and other.validation is None
+            )
         )
 
     def __hash__(self) -> int:
@@ -100,6 +102,36 @@ class DataFrameSplits:
                 id(self.validation),
             )
         )
+
+    def has_split(self, split: str) -> bool:
+        """Check whether the given split is present in this instance.
+
+        Parameters
+        ----------
+        split : str
+            Name of the split (e.g., "train", "test", or "validation").
+
+        Returns
+        -------
+        bool
+            True if the split is not None, False otherwise.
+        """
+        return getattr(self, split) is not None
+
+    def get_split(self, split: str) -> pd.DataFrame | None:
+        """Retrieve the DataFrame for the given split.
+
+        Parameters
+        ----------
+        split : str
+            Name of the split (e.g., "train", "test", or "validation").
+
+        Returns
+        -------
+        pd.DataFrame | None
+            The DataFrame corresponding to the split, or None if it doesn't exist.
+        """
+        return getattr(self, split)
 
     def equals(self, other: "DataFrameSplits") -> bool:
         """Check equality of two DataFrameSplits instances.
@@ -232,7 +264,7 @@ class HuggingFaceDatasetStore(Store):
         """
         logger.info(f"[get|in] (key={key})")
         try:
-          ds = load_dataset(key)
+            ds = load_dataset(key)
         except Exception as nfe:
             raise NoStoreException(f"Dataset '{key}' not found on Hugging Face Hub.") from nfe
 
