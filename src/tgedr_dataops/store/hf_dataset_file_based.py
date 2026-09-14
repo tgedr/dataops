@@ -41,7 +41,7 @@ class HuggingFaceDatasetFileBasedStore(Store):
     """Store pandas DataFrames as partitioned Parquet files on Hugging Face Hub."""
 
     __VALID_SPLITS: ClassVar[list[str]] = ["train", "test", "validation"]
-    __DATASET_CHUNKS_SIZE: ClassVar[int] = 2
+    __DATASET_CHUNKS_SIZE: ClassVar[int] = 100000
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         """Initialize store with optional configuration.
@@ -53,8 +53,14 @@ class HuggingFaceDatasetFileBasedStore(Store):
         """
         super().__init__(config=config)
         self.__dataset_visibility: str = "private"
+        self.__dataset_chunks_size: int = self.__DATASET_CHUNKS_SIZE
         if config is not None:
             self.__dataset_visibility = config.get("visibility", "private")
+            configured_chunks_size = config.get("dataset_chunks_size", self.__DATASET_CHUNKS_SIZE)
+            if not isinstance(configured_chunks_size, int) or configured_chunks_size <= 0:
+                raise ValueError(f"[__init__] 'dataset_chunks_size' must be a positive int, got: {configured_chunks_size!r}")
+            self.__dataset_chunks_size = configured_chunks_size
+
         self.__api = HfApi()
 
     def get(self, key: str, **kwargs) -> DataFrameSplits:  # noqa: ANN003
@@ -174,8 +180,12 @@ class HuggingFaceDatasetFileBasedStore(Store):
 
     def _store_data(self, df: pd.DataFrame, key: str, split: str) -> None:
         logger.info(f"[_store_data|in] ({df.shape}, {key}, {split})")
+        if df.empty:
+            logger.info("[_store_data] nothing to store, df is empty")
+            logger.info("[_store_data|out]")
+            return
         dfs: list[pd.DataFrame] = [
-            df.iloc[i : i + self.__DATASET_CHUNKS_SIZE] for i in range(0, df.shape[0], self.__DATASET_CHUNKS_SIZE)
+            df.iloc[i : i + self.__dataset_chunks_size] for i in range(0, df.shape[0], self.__dataset_chunks_size)
         ]
         last_index: int = self._get_last_file_index(key, split)
         with tempfile.TemporaryDirectory() as tmp_dir:

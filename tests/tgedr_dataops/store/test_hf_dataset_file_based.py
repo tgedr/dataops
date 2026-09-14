@@ -45,11 +45,32 @@ def test_init_no_config() -> None:  # noqa: D103
     store = HuggingFaceDatasetFileBasedStore()
     assert store._config is None  # noqa: SLF001
     assert store._HuggingFaceDatasetFileBasedStore__dataset_visibility == "private"  # noqa: SLF001
+    assert store._HuggingFaceDatasetFileBasedStore__dataset_chunks_size == 100000  # noqa: SLF001
 
 
 def test_init_visibility_from_config() -> None:  # noqa: D103
     store = HuggingFaceDatasetFileBasedStore(config={"visibility": "private"})
     assert store._HuggingFaceDatasetFileBasedStore__dataset_visibility == "private"  # noqa: SLF001
+
+
+def test_init_dataset_chunks_size_default(store) -> None:  # noqa: ANN001, D103
+    assert store._HuggingFaceDatasetFileBasedStore__dataset_chunks_size == 100000  # noqa: SLF001
+
+
+def test_init_dataset_chunks_size_from_config() -> None:  # noqa: D103
+    store = HuggingFaceDatasetFileBasedStore(config={"dataset_chunks_size": 2})
+    assert store._HuggingFaceDatasetFileBasedStore__dataset_chunks_size == 2  # noqa: SLF001
+
+
+def test_init_dataset_chunks_size_default_when_not_in_config() -> None:  # noqa: D103
+    store = HuggingFaceDatasetFileBasedStore(config={"visibility": "public"})
+    assert store._HuggingFaceDatasetFileBasedStore__dataset_chunks_size == 100000  # noqa: SLF001
+
+
+@pytest.mark.parametrize("bad_chunk_size", [0, -1, 0.5, "2", None])
+def test_init_dataset_chunks_size_invalid_raises(bad_chunk_size) -> None:  # noqa: ANN001, D103
+    with pytest.raises(ValueError, match="dataset_chunks_size"):
+        HuggingFaceDatasetFileBasedStore(config={"dataset_chunks_size": bad_chunk_size})
 
 
 # ---------------------------------------------------------------------------
@@ -326,9 +347,15 @@ def test_is_empty_repo_missing(store) -> None:  # noqa: ANN001, D103
 # ---------------------------------------------------------------------------
 
 
-def test_store_data_chunks_and_uploads(store, df) -> None:  # noqa: ANN001, D103
+def _store_data_with_chunk_size(
+    store: HuggingFaceDatasetFileBasedStore,
+    df: pd.DataFrame,
+    chunk_size: int,
+    split: str = "train",
+    last_index: int = -1,
+) -> MagicMock:
     with (
-        patch.object(store, "_get_last_file_index", return_value=-1),
+        patch.object(store, "_get_last_file_index", return_value=last_index),
         patch.object(store, "_HuggingFaceDatasetFileBasedStore__api") as mock_api,
         tempfile.TemporaryDirectory() as tmp_dir,
         patch(
@@ -336,16 +363,48 @@ def test_store_data_chunks_and_uploads(store, df) -> None:  # noqa: ANN001, D103
             return_value=MagicMock(__enter__=lambda _: tmp_dir),
         ),
     ):
-        store._store_data(df=df, key="owner/dataset", split="train")  # noqa: SLF001
-        # 3 rows chunked by 2 -> 2 chunks -> 2 files
-        assert mock_api.upload_file.call_count == 2
-        uploaded = [call.kwargs["path_in_repo"] for call in mock_api.upload_file.call_args_list]
-        assert uploaded == ["train_00000.parquet", "train_00001.parquet"]
+        store._HuggingFaceDatasetFileBasedStore__dataset_chunks_size = chunk_size  # noqa: SLF001
+        store._store_data(df=df, key="owner/dataset", split=split)  # noqa: SLF001
         # ensure files were physically written to temp and uploaded
         for call in mock_api.upload_file.call_args_list:
             written = Path(call.kwargs["path_or_fileobj"])
             assert written.exists()
             assert written.parent == Path(tmp_dir)
+    return mock_api
+
+
+def test_store_data_single_chunk_default_config(store, df) -> None:  # noqa: ANN001, D103
+    # Default config (chunk size 100000) means 3 rows fit in a single chunk.
+    mock_api = _store_data_with_chunk_size(store, df, chunk_size=100000)
+    assert mock_api.upload_file.call_count == 1
+    assert [call.kwargs["path_in_repo"] for call in mock_api.upload_file.call_args_list] == ["train_00000.parquet"]
+
+
+def test_store_data_chunks_and_uploads(store, df) -> None:  # noqa: ANN001, D103
+    # Small config chunk size forces multiple chunks: 3 rows chunked by 2 -> 2 chunks -> 2 files.
+    mock_api = _store_data_with_chunk_size(store, df, chunk_size=2)
+    assert mock_api.upload_file.call_count == 2
+    uploaded = [call.kwargs["path_in_repo"] for call in mock_api.upload_file.call_args_list]
+    assert uploaded == ["train_00000.parquet", "train_00001.parquet"]
+
+
+def test_store_data_resumes_from_last_file_index(store, df) -> None:  # noqa: ANN001, D103
+    # Next file index is derived from existing files: 3 rows chunked by 2 -> indices 3 and 4.
+    mock_api = _store_data_with_chunk_size(store, df, chunk_size=2, last_index=2)
+    assert mock_api.upload_file.call_count == 2
+    uploaded = [call.kwargs["path_in_repo"] for call in mock_api.upload_file.call_args_list]
+    assert uploaded == ["train_00003.parquet", "train_00004.parquet"]
+
+
+def test_store_data_empty_df_uploads_nothing(store) -> None:  # noqa: ANN001, D103
+    empty_df = pd.DataFrame({"name": pd.Series(dtype="str"), "age": pd.Series(dtype="int")})
+    with (
+        patch.object(store, "_get_last_file_index") as mock_index,
+        patch.object(store, "_HuggingFaceDatasetFileBasedStore__api") as mock_api,
+    ):
+        store._store_data(df=empty_df, key="owner/dataset", split="train")  # noqa: SLF001
+    mock_api.upload_file.assert_not_called()
+    mock_index.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
