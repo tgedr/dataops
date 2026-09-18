@@ -42,6 +42,7 @@ class HuggingFaceDatasetFileBasedStore(Store):
 
     __VALID_SPLITS: ClassVar[list[str]] = ["train", "test", "validation"]
     __DATASET_CHUNKS_SIZE: ClassVar[int] = 100000
+    __DATASET_DEFAULT_VISIBILITY: ClassVar[str] = "public"
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         """Initialize store with optional configuration.
@@ -52,10 +53,10 @@ class HuggingFaceDatasetFileBasedStore(Store):
             Configuration dictionary for the store.
         """
         super().__init__(config=config)
-        self.__dataset_visibility: str = "private"
+        self.__dataset_visibility: str = self.__DATASET_DEFAULT_VISIBILITY
         self.__dataset_chunks_size: int = self.__DATASET_CHUNKS_SIZE
         if config is not None:
-            self.__dataset_visibility = config.get("visibility", "private")
+            self.__dataset_visibility = config.get("visibility", self.__DATASET_DEFAULT_VISIBILITY)
             configured_chunks_size = config.get("dataset_chunks_size", self.__DATASET_CHUNKS_SIZE)
             if not isinstance(configured_chunks_size, int) or configured_chunks_size <= 0:
                 raise ValueError(f"[__init__] 'dataset_chunks_size' must be a positive int, got: {configured_chunks_size!r}")

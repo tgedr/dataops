@@ -44,7 +44,7 @@ def test_init_default_visibility(store) -> None:  # noqa: ANN001, D103
 def test_init_no_config() -> None:  # noqa: D103
     store = HuggingFaceDatasetFileBasedStore()
     assert store._config is None  # noqa: SLF001
-    assert store._HuggingFaceDatasetFileBasedStore__dataset_visibility == "private"  # noqa: SLF001
+    assert store._HuggingFaceDatasetFileBasedStore__dataset_visibility == "public"  # noqa: SLF001
     assert store._HuggingFaceDatasetFileBasedStore__dataset_chunks_size == 100000  # noqa: SLF001
 
 
