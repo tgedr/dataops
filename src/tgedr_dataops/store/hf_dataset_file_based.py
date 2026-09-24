@@ -109,7 +109,7 @@ class HuggingFaceDatasetFileBasedStore(Store):
         logger.info(f"[_get_last_file_index|in] ({key}, {split})")
         default_index: int = -1
         files = self.list(key=key, split=split)
-        indices = [int(f.split("_")[-1].split(".")[0]) for f in files]
+        indices = [int(f.split("-")[1]) for f in files]
         result = max(indices) if indices else default_index
         logger.info(f"[_get_last_file_index|out] => {result}")
         return result
@@ -124,10 +124,9 @@ class HuggingFaceDatasetFileBasedStore(Store):
     def list(self, key: str, split: str = "train") -> list[str]:  # noqa: D102
         logger.info(f"[list|in] ({key}, {split})")
         try:
-            pattern = re.compile(r"^(train|test|validation)_")
+            pattern = re.compile(rf"^data/{split}-") if split != "all" else re.compile(rf"^data/")
             files = self.__api.list_repo_files(key, repo_type="dataset")
-            files = [f for f in files if pattern.match(f)]
-            result = [f for f in files if f.startswith(f"{split}_")] if split != "all" else files
+            result = [f for f in files if pattern.match(f)]
             logger.info(f"[list|out] => {result}")
             return result  # noqa: TRY300
         except RepositoryNotFoundError as e:
@@ -189,14 +188,15 @@ class HuggingFaceDatasetFileBasedStore(Store):
             df.iloc[i : i + self.__dataset_chunks_size] for i in range(0, df.shape[0], self.__dataset_chunks_size)
         ]
         last_index: int = self._get_last_file_index(key, split)
+        n: int = last_index + 1 + len(dfs)
         with tempfile.TemporaryDirectory() as tmp_dir:
             for df in dfs:  # noqa: PLR1704
                 last_index += 1
-                file_name = f"{split}_{last_index:05d}.parquet"
+                file_name = f"{split}-{last_index:05d}-{n:05d}.parquet"
                 file_path = Path(tmp_dir) / file_name
                 df.to_parquet(file_path, index=False)
                 self.__api.upload_file(
-                    path_or_fileobj=file_path, path_in_repo=file_name, repo_id=key, repo_type="dataset"
+                    path_or_fileobj=file_path, path_in_repo=f"data/{file_name}", repo_id=key, repo_type="dataset"
                 )
         logger.info("[_store_data|out]")
 

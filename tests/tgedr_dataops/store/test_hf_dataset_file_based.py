@@ -167,7 +167,7 @@ def test_assert_dataset_existence_exists(store) -> None:  # noqa: ANN001, D103
 
 
 def test_get_last_file_index_with_files(store) -> None:  # noqa: ANN001, D103
-    with patch.object(store, "list", return_value=["train_00002.parquet", "train_00000.parquet"]):
+    with patch.object(store, "list", return_value=["data/train-00002-00005.parquet", "data/train-00000-00005.parquet"]):
         assert store._get_last_file_index(key="owner/dataset", split="train") == 2  # noqa: SLF001
 
 
@@ -177,9 +177,10 @@ def test_get_last_file_index_empty(store) -> None:  # noqa: ANN001, D103
 
 
 def test_get_last_file_index_wrong_extension(store) -> None:  # noqa: ANN001, D103
+    # Malformed filename without the dash-separated index part fails fast.
     with (
         patch.object(store, "list", return_value=["owner/dataset/.gitattributes"]),
-        pytest.raises(ValueError, match="invalid literal"),
+        pytest.raises(IndexError, match="list index"),
     ):
         store._get_last_file_index(key="owner/dataset", split="train")  # noqa: SLF001
 
@@ -202,27 +203,31 @@ def test_get_next_file_index(store) -> None:  # noqa: ANN001, D103
 def test_list_split(store) -> None:  # noqa: ANN001, D103
     with patch.object(store, "_HuggingFaceDatasetFileBasedStore__api") as mock_api:
         mock_api.list_repo_files.return_value = [
-            "train_00000.parquet",
-            "train_00001.parquet",
-            "test_00000.parquet",
+            "data/train-00000-00002.parquet",
+            "data/train-00001-00002.parquet",
+            "data/test-00000-00001.parquet",
             ".gitattributes",
             "README.md",
         ]
         result = store.list(key="owner/dataset", split="train")
 
-    assert result == ["train_00000.parquet", "train_00001.parquet"]
+    assert result == ["data/train-00000-00002.parquet", "data/train-00001-00002.parquet"]
 
 
 def test_list_all(store) -> None:  # noqa: ANN001, D103
     with patch.object(store, "_HuggingFaceDatasetFileBasedStore__api") as mock_api:
         mock_api.list_repo_files.return_value = [
-            "train_00000.parquet",
-            "test_00000.parquet",
-            "validation_00000.parquet",
+            "data/train-00000-00001.parquet",
+            "data/test-00000-00001.parquet",
+            "data/validation-00000-00001.parquet",
         ]
         result = store.list(key="owner/dataset", split="all")
 
-    assert result == ["train_00000.parquet", "test_00000.parquet", "validation_00000.parquet"]
+    assert result == [
+        "data/train-00000-00001.parquet",
+        "data/test-00000-00001.parquet",
+        "data/validation-00000-00001.parquet",
+    ]
 
 
 def test_list_repo_not_found() -> None:  # noqa: D103
@@ -240,17 +245,17 @@ def test_list_repo_not_found() -> None:  # noqa: D103
 
 def test_delete_split(store) -> None:  # noqa: ANN001, D103
     with (
-        patch.object(store, "list", return_value=["train_00000.parquet", "train_00001.parquet"]),
+        patch.object(store, "list", return_value=["data/train-00000-00002.parquet", "data/train-00001-00002.parquet"]),
         patch.object(store, "_HuggingFaceDatasetFileBasedStore__api") as mock_api,
     ):
         store.delete(key="owner/dataset", split="train")
 
     assert mock_api.delete_file.call_count == 2
     mock_api.delete_file.assert_any_call(
-        path_in_repo="train_00000.parquet", repo_id="owner/dataset", repo_type="dataset"
+        path_in_repo="data/train-00000-00002.parquet", repo_id="owner/dataset", repo_type="dataset"
     )
     mock_api.delete_file.assert_any_call(
-        path_in_repo="train_00001.parquet", repo_id="owner/dataset", repo_type="dataset"
+        path_in_repo="data/train-00001-00002.parquet", repo_id="owner/dataset", repo_type="dataset"
     )
 
 
@@ -333,7 +338,7 @@ def test_is_empty_true(store) -> None:  # noqa: ANN001, D103
 
 
 def test_is_empty_false(store) -> None:  # noqa: ANN001, D103
-    with patch.object(store, "list", return_value=["train_00000.parquet"]):
+    with patch.object(store, "list", return_value=["data/train-00000-00001.parquet"]):
         assert store._is_empty(key="owner/dataset") is False  # noqa: SLF001
 
 
@@ -377,7 +382,9 @@ def test_store_data_single_chunk_default_config(store, df) -> None:  # noqa: ANN
     # Default config (chunk size 100000) means 3 rows fit in a single chunk.
     mock_api = _store_data_with_chunk_size(store, df, chunk_size=100000)
     assert mock_api.upload_file.call_count == 1
-    assert [call.kwargs["path_in_repo"] for call in mock_api.upload_file.call_args_list] == ["train_00000.parquet"]
+    assert [call.kwargs["path_in_repo"] for call in mock_api.upload_file.call_args_list] == [
+        "data/train-00000-00001.parquet"
+    ]
 
 
 def test_store_data_chunks_and_uploads(store, df) -> None:  # noqa: ANN001, D103
@@ -385,7 +392,7 @@ def test_store_data_chunks_and_uploads(store, df) -> None:  # noqa: ANN001, D103
     mock_api = _store_data_with_chunk_size(store, df, chunk_size=2)
     assert mock_api.upload_file.call_count == 2
     uploaded = [call.kwargs["path_in_repo"] for call in mock_api.upload_file.call_args_list]
-    assert uploaded == ["train_00000.parquet", "train_00001.parquet"]
+    assert uploaded == ["data/train-00000-00002.parquet", "data/train-00001-00002.parquet"]
 
 
 def test_store_data_resumes_from_last_file_index(store, df) -> None:  # noqa: ANN001, D103
@@ -393,7 +400,7 @@ def test_store_data_resumes_from_last_file_index(store, df) -> None:  # noqa: AN
     mock_api = _store_data_with_chunk_size(store, df, chunk_size=2, last_index=2)
     assert mock_api.upload_file.call_count == 2
     uploaded = [call.kwargs["path_in_repo"] for call in mock_api.upload_file.call_args_list]
-    assert uploaded == ["train_00003.parquet", "train_00004.parquet"]
+    assert uploaded == ["data/train-00003-00005.parquet", "data/train-00004-00005.parquet"]
 
 
 def test_store_data_empty_df_uploads_nothing(store) -> None:  # noqa: ANN001, D103
