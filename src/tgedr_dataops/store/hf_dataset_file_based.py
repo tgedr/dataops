@@ -124,7 +124,7 @@ class HuggingFaceDatasetFileBasedStore(Store):
     def list(self, key: str, split: str = "train") -> list[str]:  # noqa: D102
         logger.info(f"[list|in] ({key}, {split})")
         try:
-            pattern = re.compile(rf"^data/{split}-") if split != "all" else re.compile(rf"^data/")
+            pattern = re.compile(rf"^data/{split}-") if split != "all" else re.compile(r"^data/")
             files = self.__api.list_repo_files(key, repo_type="dataset")
             result = [f for f in files if pattern.match(f)]
             logger.info(f"[list|out] => {result}")
