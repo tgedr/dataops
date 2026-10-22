@@ -64,13 +64,15 @@ class HuggingFaceDatasetFileBasedStore(Store):
 
         self.__api = HfApi()
 
-    def get(self, key: str, **kwargs) -> DataFrameSplits:  # noqa: ANN003
+    def get(self, key: str, columns: list[str] | None = None, **kwargs) -> DataFrameSplits:  # noqa: ANN003
         """Load a dataset from Hugging Face Hub as DataFrameSplits.
 
         Parameters
         ----------
         key : str
             Dataset identifier (e.g. "user/dataset") on Hugging Face Hub.
+        columns : list[str] | None
+            List of column names to select from the dataset. If None, all columns are loaded.
         **kwargs : Any
             Additional keyword arguments passed to the dataset loading function.
 
@@ -79,11 +81,15 @@ class HuggingFaceDatasetFileBasedStore(Store):
         DataFrameSplits
             The loaded dataset splits as DataFrames.
         """
-        logger.info(f"[get|in] ({key}, {kwargs})")
+        logger.info(f"[get|in] ({key}, {columns}, {kwargs})")
+
         try:
             ds = datasets.load_dataset(key)
         except Exception as nfe:
             raise NoStoreException(f"[get] dataset '{key}' not found on Hugging Face Hub.") from nfe
+
+        if (columns is not None) and (0 < len(columns)):
+            ds = ds.select_columns(columns)
 
         ds_dict = {}
 

@@ -104,6 +104,39 @@ def test_get_success(store) -> None:  # noqa: ANN001, D103
     assert_frame_equal(result.validation, validation)
 
 
+def test_get_selects_requested_columns(store) -> None:  # noqa: ANN001, D103
+    train = pd.DataFrame({"name": ["Alice"], "age": [30]})
+    mock_ds = MagicMock()
+    mock_ds.__iter__.return_value = iter(["train"])
+    mock_ds.__getitem__.return_value.to_pandas.return_value = train[["name"]]
+    mock_ds.select_columns.return_value = mock_ds
+
+    with patch(
+        "src.tgedr_dataops.store.hf_dataset_file_based.datasets.load_dataset",
+        return_value=mock_ds,
+    ):
+        result = store.get(key="owner/dataset", columns=["name"])
+
+    mock_ds.select_columns.assert_called_once_with(["name"])
+    assert_frame_equal(result.train, train[["name"]])
+
+
+def test_get_empty_columns_loads_all_columns(store) -> None:  # noqa: ANN001, D103
+    train = pd.DataFrame({"name": ["Alice"], "age": [30]})
+    mock_ds = MagicMock()
+    mock_ds.__iter__.return_value = iter(["train"])
+    mock_ds.__getitem__.return_value.to_pandas.return_value = train
+
+    with patch(
+        "src.tgedr_dataops.store.hf_dataset_file_based.datasets.load_dataset",
+        return_value=mock_ds,
+    ):
+        result = store.get(key="owner/dataset", columns=[])
+
+    mock_ds.select_columns.assert_not_called()
+    assert_frame_equal(result.train, train)
+
+
 def test_get_drops_index_level_0_column(store) -> None:  # noqa: ANN001, D103
     indexed_train = pd.DataFrame({"name": ["Alice"], "age": [30]})
     indexed_train.index = [5]
