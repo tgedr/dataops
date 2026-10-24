@@ -16,7 +16,7 @@ from huggingface_hub import hf_hub_download, upload_file
 from tgedr_dataops_abs.great_expectations_validation import GreatExpectationsValidation, ValidationError
 from tgedr_dataops_abs.store import NoStoreException
 
-from tgedr_dataops.store.hf_dataset import DataFrameSplits
+from tgedr_dataops.store.data_splits import DataFrameSplits
 from tgedr_dataops.store.hf_dataset_file_based import HuggingFaceDatasetFileBasedStore
 from tgedr_dataops.quality.pandas_validation import PandasValidation
 

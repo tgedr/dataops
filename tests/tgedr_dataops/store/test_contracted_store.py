@@ -20,7 +20,7 @@ from tgedr_dataops_abs.great_expectations_validation import ValidationError
 from tgedr_dataops_abs.store import NoStoreException
 
 from tgedr_dataops.quality.pandas_validation import PandasValidation
-from tgedr_dataops.store.hf_dataset import DataFrameSplits
+from tgedr_dataops.store.data_splits import DataFrameSplits
 from src.tgedr_dataops.store.contracted_store import ContractedHFDatasetFileBasedStore, HuggingFaceDatasetContractMixin
 
 

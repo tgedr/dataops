@@ -8,236 +8,33 @@ from pandas.testing import assert_frame_equal
 from datasets import Dataset, DatasetDict
 
 from tgedr_dataops_abs.store import NoStoreException
-from src.tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatasetStore
+from tgedr_dataops.store.data_splits import DataFrameSplits
+from src.tgedr_dataops.store.hf_dataset import HuggingFaceDatasetStore
 
-
-# ---------------------------------------------------------------------------
-# DataFrameSplits fixtures / helpers
-# ---------------------------------------------------------------------------
 
 @pytest.fixture
 def train_df() -> pd.DataFrame:  # noqa: D103
     return pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
 
+
 @pytest.fixture
 def train_df2() -> pd.DataFrame:  # noqa: D103
     return pd.DataFrame({"name": ["Paul", "Marylin"], "age": [20, 15]})
 
+
 @pytest.fixture
 def test_df() -> pd.DataFrame:  # noqa: D103
     return pd.DataFrame({"name": ["Charlie"], "age": [35]})
-
-@pytest.fixture
-def test_df2() -> pd.DataFrame:  # noqa: D103
-    return pd.DataFrame({"name": ["Mauro"], "age": [39]})
 
 
 @pytest.fixture
 def validation_df() -> pd.DataFrame:  # noqa: D103
     return pd.DataFrame({"name": ["Dalila"], "age": [38]})
 
-@pytest.fixture
-def validation_df2() -> pd.DataFrame:  # noqa: D103
-    return pd.DataFrame({"name": ["Elena"], "age": [28]})
-
 
 @pytest.fixture
 def splits(train_df, test_df, validation_df) -> DataFrameSplits:  # noqa: D103
     return DataFrameSplits(train=train_df, test=test_df, validation=validation_df)
-
-
-# ---------------------------------------------------------------------------
-# DataFrameSplits.__eq__
-# ---------------------------------------------------------------------------
-
-def test_eq_equal(splits, train_df, test_df, validation_df):  # noqa: ANN001, ANN201, D103
-    other = DataFrameSplits(train=train_df, test=test_df, validation=validation_df)
-    assert splits == other
-
-
-def test_eq_wrong_type(splits):  # noqa: ANN001, ANN201, D103
-    assert not (splits == "not a DataFrameSplits")
-
-
-def test_eq_different_train(splits):  # noqa: ANN001, ANN201, D103
-    other = DataFrameSplits(
-        train=pd.DataFrame({"name": ["X"], "age": [1]}),
-        test=splits.test,
-        validation=splits.validation,
-    )
-    assert splits != other
-
-
-def test_eq_different_test(splits):  # noqa: ANN001, ANN201, D103
-    other = DataFrameSplits(
-        train=splits.train,
-        test=pd.DataFrame({"name": ["X"], "age": [1]}),
-        validation=splits.validation,
-    )
-    assert splits != other
-
-
-def test_eq_different_validation(splits):  # noqa: ANN001, ANN201, D103
-    other = DataFrameSplits(
-        train=splits.train,
-        test=splits.test,
-        validation=pd.DataFrame({"name": ["X"], "age": [1]}),
-    )
-    assert splits != other
-
-
-def test_eq_none_fields():  # noqa: ANN201, D103
-    assert DataFrameSplits() == DataFrameSplits()
-
-
-def test_eq_one_side_none_train(splits):  # noqa: ANN001, ANN201, D103
-    other = DataFrameSplits(train=None, test=splits.test, validation=splits.validation)
-    assert splits != other
-
-
-def test_eq_one_side_none_test(splits):  # noqa: ANN001, ANN201, D103
-    other = DataFrameSplits(train=splits.train, test=None, validation=splits.validation)
-    assert splits != other
-
-
-def test_eq_one_side_none_validation(splits):  # noqa: ANN001, ANN201, D103
-    other = DataFrameSplits(train=splits.train, test=splits.test, validation=None)
-    assert splits != other
-
-
-# ---------------------------------------------------------------------------
-# DataFrameSplits.__hash__
-# ---------------------------------------------------------------------------
-
-def test_hash(splits):  # noqa: ANN001, ANN201, D103
-    assert isinstance(hash(splits), int)
-
-
-# ---------------------------------------------------------------------------
-# DataFrameSplits.equals
-# ---------------------------------------------------------------------------
-
-def test_equals_delegates_to_eq(splits, train_df, test_df, validation_df):  # noqa: ANN001, ANN201, D103
-    other = DataFrameSplits(train=train_df, test=test_df, validation=validation_df)
-    assert splits.equals(other)
-    assert not splits.equals(DataFrameSplits())
-
-
-# ---------------------------------------------------------------------------
-# DataFrameSplits.union
-# ---------------------------------------------------------------------------
-
-def test_union_both_present(splits):  # noqa: ANN001, ANN201, D103
-    other = DataFrameSplits(
-        train=pd.DataFrame({"name": ["Eve"], "age": [40]}),
-        test=pd.DataFrame({"name": ["Frank"], "age": [41]}),
-        validation=pd.DataFrame({"name": ["Grace"], "age": [42]}),
-    )
-    # Compute expected values BEFORE calling union(), since it mutates splits in place
-    expected_train = pd.concat([splits.train, other.train], ignore_index=True)
-    expected_test = pd.concat([splits.test, other.test], ignore_index=True)
-    expected_validation = pd.concat([splits.validation, other.validation], ignore_index=True)
-
-    result = splits.union(other)
-    assert result is splits
-    assert_frame_equal(result.train, expected_train)
-    assert_frame_equal(result.test, expected_test)
-    assert_frame_equal(result.validation, expected_validation)
-
-
-def test_union_other_none(splits):  # noqa: ANN001, ANN201, D103
-    other = DataFrameSplits()
-    result = splits.union(other)
-    assert_frame_equal(result.train, splits.train)
-    assert_frame_equal(result.test, splits.test)
-    assert_frame_equal(result.validation, splits.validation)
-
-
-def test_union_self_none(train_df, test_df, validation_df):  # noqa: ANN001, ANN201, D103
-    self_splits = DataFrameSplits()
-    other = DataFrameSplits(train=train_df, test=test_df, validation=validation_df)
-    result = self_splits.union(other)
-    assert result is self_splits
-    assert_frame_equal(result.train, train_df)
-    assert_frame_equal(result.test, test_df)
-    assert_frame_equal(result.validation, validation_df)
-
-
-def test_union_partial_missing():  # noqa: ANN201, D103
-    self_splits = DataFrameSplits(
-        train=pd.DataFrame({"a": [1]}),
-        test=None,
-        validation=pd.DataFrame({"a": [2]}),
-    )
-    other = DataFrameSplits(
-        train=None,
-        test=pd.DataFrame({"a": [3]}),
-        validation=None,
-    )
-    result = self_splits.union(other)
-    assert_frame_equal(result.train, pd.DataFrame({"a": [1]}))
-    assert_frame_equal(result.test, pd.DataFrame({"a": [3]}))
-    assert_frame_equal(result.validation, pd.DataFrame({"a": [2]}))
-
-
-# ---------------------------------------------------------------------------
-# DataFrameSplits.from_dict
-# ---------------------------------------------------------------------------
-
-def test_from_dict_all_keys(train_df, test_df, validation_df):  # noqa: ANN001, ANN201, D103
-    result = DataFrameSplits.from_dict(
-        {"train": train_df, "test": test_df, "validation": validation_df}
-    )
-    assert_frame_equal(result.train, train_df)
-    assert_frame_equal(result.test, test_df)
-    assert_frame_equal(result.validation, validation_df)
-
-
-def test_from_dict_missing_keys(train_df):  # noqa: ANN001, ANN201, D103
-    result = DataFrameSplits.from_dict({"train": train_df})
-    assert_frame_equal(result.train, train_df)
-    assert result.test is None
-    assert result.validation is None
-
-
-def test_from_dict_empty():  # noqa: ANN201, D103
-    result = DataFrameSplits.from_dict({})
-    assert result.train is None
-    assert result.test is None
-    assert result.validation is None
-
-
-# ---------------------------------------------------------------------------
-# DataFrameSplits.to_dataset_dict
-# ---------------------------------------------------------------------------
-
-def test_to_dataset_dict_all_keys(splits):  # noqa: ANN001, ANN201, D103
-    result = splits.to_dataset_dict()
-    assert isinstance(result, DatasetDict)
-    assert set(result.keys()) == {"train", "test", "validation"}
-
-
-def test_to_dataset_dict_missing_keys():  # noqa: ANN201, D103
-    result = DataFrameSplits(train=pd.DataFrame({"a": [1]})).to_dataset_dict()
-    assert set(result.keys()) == {"train"}
-
-
-def test_to_dataset_dict_empty():  # noqa: ANN201, D103
-    result = DataFrameSplits().to_dataset_dict()
-    assert isinstance(result, DatasetDict)
-    assert len(result) == 0
-
-
-# ---------------------------------------------------------------------------
-# DataFrameSplits.shape
-# ---------------------------------------------------------------------------
-
-def test_shape_all_keys(splits):  # noqa: ANN001, ANN201, D103
-    assert splits.shape == "train: (2, 2), test: (1, 2), validation: (1, 2)"
-
-
-def test_shape_missing_keys():  # noqa: ANN201, D103
-    assert DataFrameSplits().shape == "train: None, test: None, validation: None"
 
 
 # ---------------------------------------------------------------------------

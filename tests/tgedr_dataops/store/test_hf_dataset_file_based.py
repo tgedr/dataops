@@ -12,7 +12,7 @@ from pandas.testing import assert_frame_equal
 from huggingface_hub.utils import RepositoryNotFoundError
 
 from tgedr_dataops_abs.store import NoStoreException
-from tgedr_dataops.store.hf_dataset import DataFrameSplits
+from tgedr_dataops.store.data_splits import DataFrameSplits
 from src.tgedr_dataops.store.hf_dataset_file_based import HuggingFaceDatasetFileBasedStore
 
 

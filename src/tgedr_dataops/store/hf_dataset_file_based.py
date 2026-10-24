@@ -32,7 +32,7 @@ from huggingface_hub import HfApi
 from huggingface_hub.utils import RepositoryNotFoundError
 from tgedr_dataops_abs.store import Store, NoStoreException
 
-from tgedr_dataops.store.hf_dataset import DataFrameSplits
+from tgedr_dataops.store.data_splits import DataFrameSplits
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,14 @@ class HuggingFaceDatasetFileBasedStore(Store):
             self.__dataset_chunks_size = configured_chunks_size
 
         self.__api = HfApi()
+
+    @property
+    def _dataset_chunk_size(self) -> int:
+        return self.__dataset_chunks_size
+
+    @property
+    def _api(self) -> HfApi:
+        return self.__api
 
     def get(self, key: str, columns: list[str] | None = None, **kwargs) -> DataFrameSplits:  # noqa: ANN003
         """Load a dataset from Hugging Face Hub as DataFrameSplits.
