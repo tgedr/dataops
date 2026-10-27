@@ -36,7 +36,14 @@ logger = logging.getLogger(__name__)
 
 
 class HuggingFaceDatasetFileArrowBasedStore(HuggingFaceDatasetFileBasedStore):
-    """Store Hugging Face Datasets as partitioned Parquet files on the Hub."""
+    """Store Hugging Face Datasets as partitioned Parquet files on the Hub.
+
+    ``update`` replaces whole records: incoming rows whose key values match an
+    existing row replace that row entirely, so the incoming dataset must carry
+    the full set of columns it wants to persist for those records. Columns
+    present in the existing dataset but absent from the incoming rows are not
+    preserved.
+    """
 
     __VALID_SPLITS: ClassVar[list[str]] = ["train", "test", "validation"]
 
@@ -163,9 +170,14 @@ class HuggingFaceDatasetFileArrowBasedStore(HuggingFaceDatasetFileBasedStore):
     def update(self, df: Dataset, key: str, split: str, key_fields: List[str], **kwargs) -> Any:  # noqa: ANN003, UP006
         """Update records in a Hub dataset split by matching key columns.
 
-        Existing rows whose key values occur in ``df`` are replaced with the
-        incoming values. Incoming rows whose keys do not exist are appended.
-        If the split does not yet exist, ``df`` becomes the split contents.
+        Existing rows whose key values occur in ``df`` are replaced entirely
+        with the incoming rows. Incoming rows whose keys do not exist are
+        appended. If the split does not yet exist, ``df`` becomes the split
+        contents.
+
+        Because matching rows are replaced wholesale, ``df`` must carry the
+        full set of columns to persist for those records; columns present in
+        the existing dataset but absent from the incoming rows are dropped.
 
         Parameters
         ----------
@@ -187,7 +199,9 @@ class HuggingFaceDatasetFileArrowBasedStore(HuggingFaceDatasetFileBasedStore):
         KeyError
             If a key field is missing from a row in either dataset.
         """
-        logger.info(f"[update|in] ({getattr(df, 'shape', 'streaming dataset')}, {key}, {split}, {key_fields}, {kwargs})")
+        logger.info(
+            f"[update|in] ({getattr(df, 'shape', 'streaming dataset')}, {key}, {split}, {key_fields}, {kwargs})"
+        )
         if split not in self.__VALID_SPLITS:
             raise ValueError(f"Invalid split: '{split}'. Valid splits are: {self.__VALID_SPLITS}")
         if isinstance(df, IterableDataset):
@@ -205,19 +219,27 @@ class HuggingFaceDatasetFileArrowBasedStore(HuggingFaceDatasetFileBasedStore):
             def row_key(row: dict) -> tuple:
                 return tuple(row[field] for field in key_fields)
 
-            incoming_keys = {row_key(row): row for row in df.to_list()}
+            incoming_keys = {row_key(row) for row in df.to_list()}
             existing_keys = {row_key(row) for row in ds_existing.to_list()}
+            updating_keys = incoming_keys & existing_keys
 
-            ds_updated = ds_existing.map(
-                lambda row: {**row, **incoming_keys.get(row_key(row), {})},
+            rows_to_update = df.filter(
+                lambda row: row_key(row) in updating_keys,
                 load_from_cache_file=False,
             )
-            ds_unmatched = df.filter(
-                lambda row: row_key(row) not in existing_keys,
+            rows_to_add = df.filter(
+                lambda row: row_key(row) not in updating_keys,
+                load_from_cache_file=False,
+            )
+            rows_to_keep = ds_existing.filter(
+                lambda row: row_key(row) not in updating_keys,
                 load_from_cache_file=False,
             )
 
-            ds2save = concatenate_datasets([ds_updated, ds_unmatched]) if ds_unmatched.num_rows else ds_updated
+            if rows_to_add.num_rows:
+                ds2save = concatenate_datasets([rows_to_update, rows_to_keep, rows_to_add])
+            else:
+                ds2save = concatenate_datasets([rows_to_update, rows_to_keep])
 
         self.save(df=ds2save, key=key, split=split)
         logger.info("[update|out]")

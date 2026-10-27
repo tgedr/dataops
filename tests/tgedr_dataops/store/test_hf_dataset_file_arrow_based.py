@@ -368,17 +368,15 @@ def test_update_no_matching_rows_appends_all(store: HuggingFaceDatasetFileArrowB
     assert save.call_args.kwargs["df"].to_list() == [{"id": 10, "name": "Old"}, {"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
 
 
-def test_update_same_schema_and_no_unmatched_rows_avoids_concatenation(store: HuggingFaceDatasetFileArrowBasedStore) -> None:
+def test_update_same_schema_and_no_unmatched_rows(store: HuggingFaceDatasetFileArrowBasedStore) -> None:
     incoming = Dataset.from_dict({"id": [1], "name": ["Updated"]})
     existing = DatasetSplits(train=Dataset.from_dict({"id": [1], "name": ["Old"]}))
     with (
         patch.object(store, "_assert_dataset_existence"),
         patch.object(store, "get", return_value=existing),
         patch.object(store, "save") as save,
-        patch("tgedr_dataops.store.hf_dataset_file_arrow_based.concatenate_datasets") as concatenate,
     ):
         store.update(incoming, "owner/dataset", "train", ["id"])
-    concatenate.assert_not_called()
     assert save.call_args.kwargs["df"].to_list() == [{"id": 1, "name": "Updated"}]
 
 
@@ -406,3 +404,14 @@ def test_update_invalid_key_field_raises(store: HuggingFaceDatasetFileArrowBased
     with patch.object(store, "_assert_dataset_existence"), patch.object(store, "get", return_value=existing):
         with pytest.raises(KeyError):
             store.update(incoming, "owner/dataset", "train", ["missing"])
+
+def test_update_replaces_matching_rows_with_extra_incoming_column(store: HuggingFaceDatasetFileArrowBasedStore) -> None:
+    incoming = Dataset.from_dict({"id": [2, 3], "name": ["New", "Zoe"], "extra": ["x", "z"]})
+    existing = DatasetSplits(train=Dataset.from_dict({"id": [1, 2], "name": ["Old", "Bob"]}))
+    with patch.object(store, "_assert_dataset_existence"), patch.object(store, "get", return_value=existing), patch.object(store, "save") as save:
+        store.update(incoming, "owner/dataset", "train", ["id"])
+    assert save.call_args.kwargs["df"].to_list() == [
+        {"id": 2, "name": "New", "extra": "x"},
+        {"id": 1, "name": "Old", "extra": None},
+        {"id": 3, "name": "Zoe", "extra": "z"},
+    ]
