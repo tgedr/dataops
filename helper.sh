@@ -287,6 +287,30 @@ get_latest_tag() {
   info "[get_latest_tag|out] => ${result}"
 }
 
+############################
+#   name: git_tag_and_push_auto_uv
+#   purpose: reads the project version from pyproject.toml via uv, then creates an annotated git tag on the latest commit and pushes all tags to remote
+#   parameters: none
+#   returns: 0 if the tag is created and pushed, 1 if tagging or pushing fails
+#   requires: uv (with tomllib), git, this_folder
+############################
+git_tag_and_push_auto_uv()
+{
+  info "[git_tag_and_push_auto_uv|in]"
+
+  local version=$(uv run python -c "import tomllib; d=tomllib.load(open('pyproject.toml','rb')); print(d['project']['version'])")
+  local commit_hash=$(git log -1 --format="%H")
+  info "[git_tag_and_push_auto_uv] version: $version, commit_hash: $commit_hash"
+
+  git tag -a "$version" "$commit_hash" -m "release $version" && git push --tags
+  result="$?"
+  
+  [ "$result" -ne "0" ] && err "[git_tag_and_push_auto_uv|out] could not tag and push" && return 1
+
+  info "[git_tag_and_push_auto_uv|out] => ${result}"
+}
+
+
 # <=== MAIN SECTION END  <===
 
 
@@ -306,7 +330,7 @@ usage() {
       - test_coverage_check <threshold>   checks coverage against a threshold
       - build                             builds the package
       - publish                           publishes the package
-      - tag <VERSION> <COMMIT_HASH>       tags a specific commit with the version and pushes it to the remote
+      - tag                               tags the latest commit with the version from pyproject.toml and pushes it to the remote
       - get_latest_tag
 EOM
   exit 1
@@ -342,7 +366,7 @@ case "$1" in
     publish
     ;;
   tag)
-    git_tag_and_push "$2" "$3"
+    git_tag_and_push_auto_uv
     ;;
   get_latest_tag)
     get_latest_tag
