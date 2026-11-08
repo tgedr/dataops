@@ -24,11 +24,12 @@ from typing import Any, ClassVar, List  # noqa: UP035
 import logging
 import math
 from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict, concatenate_datasets
+from datasets.data_files import EmptyDatasetError
 from pathlib import Path
 import datasets
 import tempfile
 
-from tgedr_dataops_abs.store import NoStoreException
+from tgedr_dataops_abs.store import NoStoreException, EmptyStoreException
 from tgedr_dataops.store.data_splits import DatasetSplits, IterableDatasetSplits
 from tgedr_dataops.store.hf_dataset_file_based import HuggingFaceDatasetFileBasedStore
 
@@ -74,11 +75,15 @@ class HuggingFaceDatasetFileArrowBasedStore(HuggingFaceDatasetFileBasedStore):
         ------
         NoStoreException
             If the dataset cannot be loaded.
+        EmptyStoreException
+            If the dataset is empty.
         """
         logger.info(f"[get|in] ({key}, {columns}, {streaming}, {kwargs})")
 
         try:
             ds: DatasetDict | IterableDatasetDict = datasets.load_dataset(key, streaming=streaming)
+        except EmptyDatasetError as ede:
+            raise EmptyStoreException(f"[get] dataset '{key}' is empty on Hugging Face Hub.") from ede
         except Exception as nfe:
             raise NoStoreException(f"[get] dataset '{key}' not found on Hugging Face Hub.") from nfe
 
@@ -208,8 +213,12 @@ class HuggingFaceDatasetFileArrowBasedStore(HuggingFaceDatasetFileBasedStore):
             raise TypeError("update does not support IterableDataset; materialize the data first.")
 
         self._assert_dataset_existence(key)
-        dss_baseline: DatasetSplits = self.get(key)
-        ds_existing = dss_baseline.get_split(split)
+        try:
+            dss_baseline: DatasetSplits = self.get(key)
+            ds_existing = dss_baseline.get_split(split)
+        except EmptyStoreException as ese:
+            logger.warning("[update] Dataset '%s' is empty: %s", key, ese)
+            ds_existing = None
 
         if ds_existing is None:
             ds2save = df

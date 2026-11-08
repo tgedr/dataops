@@ -8,9 +8,10 @@ import httpx
 import pandas as pd
 import pytest
 from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict
+from datasets.data_files import EmptyDatasetError
 from huggingface_hub.utils import RepositoryNotFoundError
 
-from tgedr_dataops_abs.store import NoStoreException
+from tgedr_dataops_abs.store import EmptyStoreException, NoStoreException
 from tgedr_dataops.store.data_splits import DatasetSplits, IterableDatasetSplits
 from tgedr_dataops.store.hf_dataset_file_arrow_based import HuggingFaceDatasetFileArrowBasedStore
 
@@ -106,6 +107,17 @@ def test_get_dataset_not_found(store: HuggingFaceDatasetFileArrowBasedStore) -> 
         pytest.raises(NoStoreException, match="not found on Hugging Face Hub"),
     ):
         store.get("missing/key")
+
+
+def test_get_empty_dataset(store: HuggingFaceDatasetFileArrowBasedStore) -> None:
+    with (
+        patch(
+            "tgedr_dataops.store.hf_dataset_file_arrow_based.datasets.load_dataset",
+            side_effect=EmptyDatasetError(),
+        ),
+        pytest.raises(EmptyStoreException, match="is empty on Hugging Face Hub"),
+    ):
+        store.get("owner/empty")
 
 
 def test_assert_dataset_existence_creates_when_missing(store: HuggingFaceDatasetFileArrowBasedStore) -> None:
@@ -338,6 +350,18 @@ def test_update_invalid_split_raises(store: HuggingFaceDatasetFileArrowBasedStor
 def test_update_split_missing(store: HuggingFaceDatasetFileArrowBasedStore, dataset: Dataset) -> None:
     existing = DatasetSplits(test=Dataset.from_dict({"id": [9], "name": ["Zoe"], "age": [40]}))
     with patch.object(store, "_assert_dataset_existence"), patch.object(store, "get", return_value=existing), patch.object(store, "save") as save:
+        store.update(dataset, "owner/dataset", "train", ["id"])
+    save.assert_called_once_with(df=dataset, key="owner/dataset", split="train")
+
+
+def test_update_empty_store_uses_incoming_dataset(
+    store: HuggingFaceDatasetFileArrowBasedStore, dataset: Dataset
+) -> None:
+    with (
+        patch.object(store, "_assert_dataset_existence"),
+        patch.object(store, "get", side_effect=EmptyStoreException("empty")),
+        patch.object(store, "save") as save,
+    ):
         store.update(dataset, "owner/dataset", "train", ["id"])
     save.assert_called_once_with(df=dataset, key="owner/dataset", split="train")
 
