@@ -543,3 +543,93 @@ def test_list_account_repositories_uses_requests_by_default(mocker):
 
     assert ["owner/a"] == [entry["full_name"] for entry in actual]
     assert get.call_args.kwargs["timeout"] == 30.0
+
+
+def test_format_github_file_without_ref():
+    from tgedr_dataops.commons.utils_github import format_github_file
+
+    assert format_github_file("owner", "repo", "a/b.csv") == "owner/repo/a/b.csv"
+
+
+def test_format_github_file_with_ref():
+    from tgedr_dataops.commons.utils_github import format_github_file
+
+    assert format_github_file("owner", "repo", "a/b.csv", "development") == "owner/repo/a/b.csv?ref=development"
+
+
+def test_format_github_file_keeps_slashed_ref_unambiguous():
+    from tgedr_dataops.commons.utils_github import format_github_file, parse_github_file
+
+    coordinate = format_github_file("owner", "repo", "data/a.csv", "feature/x")
+    assert coordinate == "owner/repo/data/a.csv?ref=feature/x"
+    parsed = parse_github_file(coordinate)
+    assert (parsed.owner, parsed.repo, parsed.ref, parsed.path) == ("owner", "repo", "feature/x", "data/a.csv")
+
+
+def test_format_github_file_ignores_blank_ref():
+    from tgedr_dataops.commons.utils_github import format_github_file
+
+    assert format_github_file("owner", "repo", "a.csv", "   ") == "owner/repo/a.csv"
+
+
+@pytest.mark.parametrize(
+    ("owner", "repo", "path", "message"),
+    [("", "repo", "a.csv", "owner and repo"), ("owner", "", "a.csv", "owner and repo"),
+     ("owner", "repo", "", "path must be provided"), ("owner", "repo", "///", "path must be provided")],
+)
+def test_format_github_file_invalid(owner, repo, path, message):
+    from tgedr_dataops.commons.utils_github import format_github_file
+
+    with pytest.raises(ValueError, match=message):
+        format_github_file(owner, repo, path)
+
+
+def test_parse_github_file_with_ref():
+    from tgedr_dataops.commons.utils_github import parse_github_file
+
+    actual = parse_github_file("owner/repo/data/a.csv?ref=v1.2.3")
+    assert actual == GithubReference(owner="owner", repo="repo", ref="v1.2.3", path="data/a.csv")
+
+
+def test_parse_github_file_with_slashed_ref():
+    from tgedr_dataops.commons.utils_github import parse_github_file
+
+    actual = parse_github_file("owner/repo/data/a.csv?ref=feature/x")
+    assert (actual.ref, actual.path) == ("feature/x", "data/a.csv")
+
+
+def test_parse_github_file_without_ref_has_no_ref():
+    from tgedr_dataops.commons.utils_github import parse_github_file
+
+    assert parse_github_file("owner/repo/data/a.csv").ref is None
+
+
+@pytest.mark.parametrize("coordinate", ["owner/repo/data/a.csv?ref=", "owner/repo/data/a.csv?ref=x?ref=y"])
+def test_parse_github_file_invalid_ref(coordinate):
+    from tgedr_dataops.commons.utils_github import parse_github_file
+
+    with pytest.raises(ValueError, match="unsupported github file"):
+        parse_github_file(coordinate)
+
+
+def test_parse_github_file_ref_only_repository():
+    from tgedr_dataops.commons.utils_github import parse_github_file
+
+    with pytest.raises(ValueError, match="missing a path"):
+        parse_github_file("owner/repo?ref=ref")
+
+
+def test_parse_github_file_ref_without_path():
+    from tgedr_dataops.commons.utils_github import parse_github_file
+
+    with pytest.raises(ValueError, match="missing a path"):
+        parse_github_file("owner/repo/?ref=ref")
+
+
+def test_parse_github_file_round_trips():
+    from tgedr_dataops.commons.utils_github import format_github_file, parse_github_file
+
+    for ref in [None, "main", "v2.2.0", "feature/x"]:
+        coordinate = format_github_file("owner", "repo", "a/b/c.csv", ref)
+        parsed = parse_github_file(coordinate)
+        assert (parsed.owner, parsed.repo, parsed.ref, parsed.path) == ("owner", "repo", ref, "a/b/c.csv")

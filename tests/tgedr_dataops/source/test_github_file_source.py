@@ -115,7 +115,7 @@ def test_list_repository_root(mocker):
     )
 
     actual = GithubFileSource().list(context={"source": "owner/repo"})
-    assert actual == ["owner/repo/folder/a.csv", "owner/repo/folder/b.xml"]
+    assert actual == ["owner/repo/folder/a.csv?ref=main", "owner/repo/folder/b.xml?ref=main"]
     assert get.call_args.args[0] == "https://api.github.com/repos/owner/repo/contents"
     assert get.call_args.kwargs["params"] == {"ref": "main"}
 
@@ -150,7 +150,7 @@ def test_list_with_suffix(mocker):
     )
 
     actual = GithubFileSource().list(context={"source": "owner/repo", "suffix": ".xml"})
-    assert ["owner/repo/folder/b.xml", "owner/repo/folder/c.xml"] == actual
+    assert ["owner/repo/folder/b.xml?ref=main", "owner/repo/folder/c.xml?ref=main"] == actual
 
 
 def test_list_uses_reference_token(mocker, monkeypatch):
@@ -186,7 +186,7 @@ def test_list_single_file_payload(mocker):
     mocker.patch(MOCK_GET, return_value=FakeResponse(payload=payload))
 
     actual = GithubFileSource().list(context={"source": "owner/repo", "path": "data/a.csv"})
-    assert actual == ["owner/repo/data/a.csv"]
+    assert actual == ["owner/repo/data/a.csv?ref=main"]
 
 
 def test_list_request_exception(mocker):
@@ -352,7 +352,7 @@ def test_list_then_get(mocker):
 
     o = GithubFileSource()
     files = o.list(context={"source": "owner/repo"})
-    assert ["owner/repo/folder/a.csv", "owner/repo/folder/b.csv"] == files
+    assert ["owner/repo/folder/a.csv?ref=main", "owner/repo/folder/b.csv?ref=main"] == files
 
     target = temp_dir()
     actual = o.get({"files": files, "target": target})
@@ -396,7 +396,7 @@ def test_list_returns_coordinates_for_enterprise(mocker):
     mocker.patch(MOCK_GET, return_value=FakeResponse(payload=[file_entry("a.csv")]))
 
     actual = GithubFileSource(config={"host": "octocorp.ghe.com"}).list(context={"source": "owner/repo"})
-    assert actual == ["owner/repo/folder/a.csv"]
+    assert actual == ["owner/repo/folder/a.csv?ref=main"]
 
 
 def test_public_get_uses_raw_host(mocker):
@@ -425,3 +425,169 @@ def test_enterprise_get_uses_contents_api_raw_media_type(mocker):
     )
     assert get.call_args.args[0] == "https://api.octocorp.ghe.com/repos/owner/repo/contents/data/a.csv?ref=feature%2Fx"
     assert get.call_args.kwargs["headers"]["Accept"] == "application/vnd.github.raw"
+
+
+def test_config_host_defaults_to_github_com():
+    from tgedr_dataops.commons.utils_github import PUBLIC_HOST
+
+    o = GithubFileSource()
+    assert o._config_host == PUBLIC_HOST
+    assert o._host_is_configured is False
+
+
+def test_config_host_is_normalized():
+    o = GithubFileSource(config={"host": "https://OctoCorp.ghe.com/"})
+    assert o._config_host == "octocorp.ghe.com"
+    assert o._host_is_configured is True
+
+
+def test_explicit_public_host_still_wins_over_source_url(mocker):
+    get = mocker.patch(MOCK_GET, return_value=FakeResponse(payload=[]))
+
+    GithubFileSource(config={"host": "github.com"}).list(context={"source": "https://octocorp.ghe.com/owner/repo"})
+    assert get.call_args.args[0] == "https://api.github.com/repos/owner/repo/contents"
+
+
+def test_default_host_does_not_leak_between_calls(mocker):
+    get = mocker.patch(MOCK_GET, return_value=FakeResponse(payload=[]))
+
+    o = GithubFileSource()
+    o.list(context={"source": "https://octocorp.ghe.com/owner/repo"})
+    assert get.call_args.args[0] == "https://api.octocorp.ghe.com/repos/owner/repo/contents"
+
+    o.list(context={"source": "owner/repo"})
+    assert get.call_args.args[0] == "https://api.github.com/repos/owner/repo/contents"
+
+
+@pytest.mark.parametrize("host", [None, "", "   "])
+def test_blank_host_config_is_not_treated_as_configured(host):
+    from tgedr_dataops.commons.utils_github import PUBLIC_HOST
+
+    o = GithubFileSource(config={"host": host})
+    assert o._config_host == PUBLIC_HOST
+    assert o._host_is_configured is False
+
+
+@pytest.mark.parametrize("host", [None, "", "   "])
+def test_blank_host_config_still_adopts_source_url_host(mocker, host):
+    get = mocker.patch(MOCK_GET, return_value=FakeResponse(payload=[]))
+
+    GithubFileSource(config={"host": host}).list(context={"source": "https://octocorp.ghe.com/owner/repo"})
+    assert get.call_args.args[0] == "https://api.octocorp.ghe.com/repos/owner/repo/contents"
+
+
+def test_blank_host_config_is_not_treated_as_configured_for_non_str():
+    from tgedr_dataops.commons.utils_github import PUBLIC_HOST
+
+    o = GithubFileSource(config={"host": 123})
+    assert o._config_host == PUBLIC_HOST
+    assert o._host_is_configured is False
+
+
+def test_get_prefixed_names_for_unique_basenames(mocker):
+    get = mocker.patch(MOCK_GET, return_value=FakeResponse(chunks=(b"payload",)))
+
+    target = temp_dir()
+    actual = GithubFileSource().get(
+        {"files": ["owner/repo/a.csv", "owner/repo/b.csv"], "target": target}
+    )
+
+    assert [f"{target}/a.csv", f"{target}/b.csv"] == actual
+    assert 2 == get.call_count
+
+
+def test_get_renames_colliding_basenames_with_account_repo_prefix(mocker):
+    get = mocker.patch(MOCK_GET, return_value=FakeResponse(chunks=(b"payload",)))
+
+    target = temp_dir()
+    actual = GithubFileSource().get(
+        {
+            "files": [
+                "jtviegas/airesdeornelas/README.md?ref=development",
+                "jtviegas/bashutils/README.md",
+            ],
+            "target": target,
+        }
+    )
+
+    assert [
+        f"{target}/jtviegas_airesdeornelas_README.md",
+        f"{target}/jtviegas_bashutils_README.md",
+    ] == actual
+    assert 2 == len(set(actual))
+    assert 2 == get.call_count
+
+
+def test_get_keeps_unique_names_untouched_next_to_collisions(mocker):
+    mocker.patch(MOCK_GET, return_value=FakeResponse(chunks=(b"payload",)))
+
+    target = temp_dir()
+    actual = GithubFileSource().get(
+        {
+            "files": ["owner/r1/README.md", "owner/r2/README.md", "owner/r3/notes.txt"],
+            "target": target,
+        }
+    )
+
+    assert [
+        f"{target}/owner_r1_README.md",
+        f"{target}/owner_r2_README.md",
+        f"{target}/notes.txt",
+    ] == actual
+
+
+def test_get_disambiguates_collisions_inside_a_single_repository(mocker):
+    mocker.patch(MOCK_GET, return_value=FakeResponse(chunks=(b"payload",)))
+
+    target = temp_dir()
+    actual = GithubFileSource().get(
+        {"files": ["owner/repo/a/README.md", "owner/repo/b/README.md"], "target": target}
+    )
+
+    assert [
+        f"{target}/owner_repo_README.md",
+        f"{target}/owner_repo_b_README.md",
+    ] == actual
+    assert 2 == len(set(actual))
+
+
+def test_get_uses_ref_from_each_coordinate(mocker):
+    get = mocker.patch(MOCK_GET, return_value=FakeResponse(chunks=(b"payload",)))
+
+    GithubFileSource().get(
+        {
+            "files": ["jtviegas/airesdeornelas/README.md?ref=development", "owner/repo/f.csv"],
+            "target": temp_dir(),
+        }
+    )
+
+    assert get.call_args_list[0].args[0] == f"https://{RAW_HOST}/jtviegas/airesdeornelas/development/README.md"
+    assert get.call_args_list[1].args[0] == f"https://{RAW_HOST}/owner/repo/main/f.csv"
+
+
+def test_get_coordinate_ref_wins_over_branch_context(mocker):
+    get = mocker.patch(MOCK_GET, return_value=FakeResponse(chunks=(b"payload",)))
+
+    GithubFileSource().get(
+        {"files": "owner/repo/a.csv?ref=development", "branch": "main", "target": temp_dir()}
+    )
+
+    assert get.call_args.args[0] == f"https://{RAW_HOST}/owner/repo/development/a.csv"
+
+
+def test_list_then_get_survives_a_non_main_default_branch(mocker):
+    get = mocker.patch(
+        MOCK_GET,
+        side_effect=[
+            FakeResponse(payload=[{"name": "README.md", "path": "README.md", "type": "file"}]),
+            FakeResponse(chunks=(b"readme",)),
+        ],
+    )
+
+    o = GithubFileSource()
+    files = o.list(context={"source": "jtviegas/airesdeornelas", "branch": "development", "suffix": "README.md"})
+    assert ["jtviegas/airesdeornelas/README.md?ref=development"] == files
+
+    actual = o.get({"files": files, "target": temp_dir()})
+    assert 1 == len(actual)
+    assert get.call_args_list[1].args[0] == f"https://{RAW_HOST}/jtviegas/airesdeornelas/development/README.md"

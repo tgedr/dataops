@@ -19,6 +19,7 @@ from tgedr_dataops.commons.utils_github import (
     contents_url,
     enterprise_subdomain,
     normalize_host,
+    format_github_file,
     parse_github_file,
     parse_github_source,
     raw_file_url,
@@ -76,8 +77,11 @@ class GithubFileSource(Source):
 
         self._auth: str | None = config.get(self.CONFIG_KEY_AUTH) or None
         self._timeout: float = float(configured_timeout)
-        self._config_host = config.get(self.CONFIG_KEY_HOST)
-        self._host: str = normalize_host(self._config_host)
+
+        configured_host = config.get(self.CONFIG_KEY_HOST)
+        self._host_is_configured: bool = isinstance(configured_host, str) and bool(configured_host.strip())
+        self._config_host: str = normalize_host(configured_host if self._host_is_configured else None)
+
         self._use_api_download: bool = bool(config.get(self.CONFIG_KEY_USE_API_DOWNLOAD, False))
 
     @property
@@ -89,7 +93,28 @@ class GithubFileSource(Source):
         str
             REST API base url.
         """
-        return api_base_url(self._host)
+        return api_base_url(self._config_host)
+
+    def _resolve_host(self, reference: GithubReference) -> str:
+        """Resolve the host to use for a single operation.
+
+        An explicitly configured host always wins. Otherwise the host carried by the source url is
+        used, falling back to the default public host. The result is never stored on the instance,
+        so a source url cannot leak its host into later calls.
+
+        Parameters
+        ----------
+        reference : GithubReference
+            Reference parsed from the context.
+
+        Returns
+        -------
+        str
+            Host to use for this operation.
+        """
+        if self._host_is_configured:
+            return self._config_host
+        return normalize_host(reference.host) if reference.host is not None else self._config_host
 
     @property
     def _effective_auth(self) -> str | None:
@@ -115,7 +140,7 @@ class GithubFileSource(Source):
         Returns
         -------
         list[str]
-            List of '<owner>/<repo>/<path>' coordinates, directly usable by 'get'.
+            List of '<owner>/<repo>@<ref>/<path>' coordinates, directly usable by 'get'.
 
         Raises
         ------
@@ -130,8 +155,7 @@ class GithubFileSource(Source):
         except ValueError as e:
             raise SourceException(str(e)) from e
 
-        if reference.host is not None and self._config_host is None:
-            self._host = normalize_host(reference.host)
+        host = self._resolve_host(reference)
 
         logger.info(f"[list|in] {reference}")
 
@@ -143,14 +167,16 @@ class GithubFileSource(Source):
         )
         path = context.get(self.CONTEXT_KEY_PATH, reference.path) or ""
 
-        entries = self._list_entries(reference, ref, path, reference.token)
+        entries = self._list_entries(reference, ref, path, reference.token, host)
 
         files = [entry for entry in entries if entry["type"] == "file"]
         if self.CONTEXT_KEY_SUFFIX in context:
             suffix: str = context[self.CONTEXT_KEY_SUFFIX]
             files = [entry for entry in files if entry["path"].endswith(suffix)]
 
-        result = [f"{reference.owner}/{reference.repo}/{entry['path']}" for entry in files]
+        result = [
+            format_github_file(reference.owner, reference.repo, entry["path"], ref) for entry in files
+        ]
 
         logger.debug(f"[list|out] => {result}")
         logger.info(f"[list|out] => result len: {len(result)}")
@@ -162,8 +188,9 @@ class GithubFileSource(Source):
         Parameters
         ----------
         context : dict[str, Any], optional
-            Context dictionary containing 'files' (<owner>/<repo>/<path> coordinates) and 'target'
-            (local path), plus an optional 'branch' (defaults to 'main').
+            Context dictionary containing 'files' and 'target' (local path). Each file is either a
+            '<owner>/<repo>/<path>' or '<owner>/<repo>@<ref>/<path>' coordinate; the optional 'branch'
+            context key is used for coordinates that do not pin a ref (defaults to 'main').
 
         Returns
         -------
@@ -193,23 +220,63 @@ class GithubFileSource(Source):
         if not target_is_dir and len(files) > 1:
             raise SourceException(f"target must be a folder when retrieving several files, got: {target}")
 
-        branch = context.get(self.CONTEXT_KEY_BRANCH) or self.DEFAULT_BRANCH
-        logger.info(f"[get|in] files: {files} branch: {branch} target: {target}")
+        default_branch = context.get(self.CONTEXT_KEY_BRANCH) or self.DEFAULT_BRANCH
+        logger.info(f"[get|in] files: {files} branch: {default_branch} target: {target}")
 
-        result: list[str] = []
+        parsed: list[tuple[GithubReference, str]] = []
         for file in files:
             try:
                 reference = parse_github_file(file)
             except ValueError as e:
                 raise SourceException(str(e)) from e
+            parsed.append((reference, reference.ref or default_branch))
 
-            local_file = str(Path(target) / Path(reference.path).name) if target_is_dir else target
+        names = self._local_names(parsed) if target_is_dir else {}
+        result: list[str] = []
+        for index, (reference, branch) in enumerate(parsed):
+            local_file = str(Path(target) / names[index]) if target_is_dir else target
 
             self._download(self._download_url(reference, branch), reference.token or self._effective_auth, local_file)
             result.append(local_file)
 
         logger.info(f"[get|out] => {result}")
         return result
+
+    def _local_names(self, parsed: list[tuple[GithubReference, str]]) -> dict[int, str]:
+        """Resolve the local file name of each coordinate inside a target folder.
+
+        Coordinates from different repositories often share the same file name (every repo has a
+        'README.md'), which would make them overwrite each other. Names are kept as-is when they are
+        unique, otherwise each colliding entry is prefixed as '<account>_<repo>_<name>', e.g.
+        'jtviegas_airesdeornelas_README.md'.
+
+        Parameters
+        ----------
+        parsed : list[tuple[GithubReference, str]]
+            Coordinates and the branch resolved for each of them.
+
+        Returns
+        -------
+        dict[int, str]
+            Local file name per index of 'parsed'.
+        """
+        basenames = [Path(reference.path).name for reference, _ in parsed]
+        counts: dict[str, int] = {}
+        for name in basenames:
+            counts[name] = counts.get(name, 0) + 1
+
+        names: dict[int, str] = {}
+        used: set[str] = set()
+        for index, ((reference, _), name) in enumerate(zip(parsed, basenames, strict=True)):
+            candidate = name
+            if counts[name] > 1:
+                candidate = f"{reference.owner}_{reference.repo}_{name}"
+                # the same repository can hold a colliding name twice (e.g. 'a/README.md' and 'b/README.md')
+                if candidate in used:
+                    candidate = f"{reference.owner}_{reference.repo}_{reference.path.replace('/', '_')}"
+            names[index] = candidate
+            used.add(candidate)
+        return names
 
     def _download_url(self, reference: GithubReference, ref: str) -> str:
         """Resolve the url used to download a file.
@@ -230,13 +297,13 @@ class GithubFileSource(Source):
         str
             Url to download the file from, without credentials.
         """
-        if self._use_api_download or enterprise_subdomain(self._host) is not None:
-            url = contents_url(reference.owner, reference.repo, reference.path, self._host)
+        if self._use_api_download or enterprise_subdomain(self._config_host) is not None:
+            url = contents_url(reference.owner, reference.repo, reference.path, self._config_host)
             return f"{url}?ref={quote(ref, safe='')}"
         return raw_file_url(reference.owner, reference.repo, ref, reference.path)
 
     def _list_entries(
-        self, reference: GithubReference, ref: str, path: str, auth: str | None = None
+        self, reference: GithubReference, ref: str, path: str, auth: str | None = None, host: str | None = None
     ) -> list[dict[str, Any]]:
         """Retrieve the contents api entries of a repository folder.
 
@@ -250,6 +317,8 @@ class GithubFileSource(Source):
             Folder path inside the repository, empty for the repository root.
         auth : str | None
             Token used as authorization header, if any.
+        host : str | None
+            Github host for this operation, defaults to the configured one.
 
         Returns
         -------
@@ -261,7 +330,7 @@ class GithubFileSource(Source):
         SourceException
             If the repository or folder cannot be reached.
         """
-        url = contents_url(reference.owner, reference.repo, path, self._host)
+        url = contents_url(reference.owner, reference.repo, path, host or self._config_host)
 
         label = f"{reference.owner}/{reference.repo}@{ref}/{path}"
         try:

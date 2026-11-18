@@ -24,6 +24,7 @@ GHE_SUFFIX = ".ghe.com"
 RAW_SCHEME = "https://"
 DEFAULT_REF = "HEAD"
 GITHUB_AUTH_SCHEME = "Bearer"
+REF_SUFFIX = "?ref="
 _PER_PAGE = 100
 _NOT_FOUND = 404
 _FORBIDDEN = 403
@@ -261,11 +262,50 @@ def parse_github_source(source: str) -> GithubReference:
     )
 
 
+def format_github_file(owner: str, repo: str, path: str, ref: str | None = None) -> str:
+    """Format a file coordinate, optionally pinned to a ref.
+
+    The ref is appended as a '?ref=' suffix, so refs containing slashes stay unambiguous.
+
+    Parameters
+    ----------
+    owner : str
+        Repository owner (user or organization).
+    repo : str
+        Repository name.
+    path : str
+        Path of the file inside the repository.
+    ref : str | None
+        Optional branch, tag or commit sha.
+
+    Returns
+    -------
+    str
+        Coordinate in the form '<owner>/<repo>/<path>' or '<owner>/<repo>/<path>?ref=<ref>'.
+
+    Raises
+    ------
+    ValueError
+        If owner, repo or path are missing.
+    """
+    if not owner or not repo:
+        raise ValueError("owner and repo must be provided")
+    if not path:
+        raise ValueError("path must be provided")
+
+    clean_path = path.strip("/")
+    if not clean_path:
+        raise ValueError("path must be provided")
+
+    pinned = f"{REF_SUFFIX}{ref.strip()}" if ref and ref.strip() else ""
+    return f"{owner}/{repo}/{clean_path}{pinned}"
+
+
 def parse_github_file(value: str) -> GithubReference:
     """Parse a file coordinate of the form 'owner/repo/path/to/file'.
 
-    The branch is deliberately not part of the coordinate: keeping it out of the string removes the
-    ambiguity of branch names containing slashes.
+    An optional '?ref=<ref>' suffix pins the coordinate to a branch, tag or commit sha. Keeping the
+    ref out of the path keeps branch names containing slashes unambiguous.
 
     Parameters
     ----------
@@ -275,7 +315,7 @@ def parse_github_file(value: str) -> GithubReference:
     Returns
     -------
     GithubReference
-        Parsed reference with 'ref' left unset.
+        Parsed reference, with 'ref' set when the coordinate carries one.
 
     Raises
     ------
@@ -286,9 +326,14 @@ def parse_github_file(value: str) -> GithubReference:
     if not candidate:
         raise ValueError("github file coordinate cannot be empty")
 
-    segments = candidate.split("/", 2)
+    coordinate, _, ref = candidate.partition(REF_SUFFIX)
+    ref = ref.strip() or None
+    if candidate.count(REF_SUFFIX) > 1 or (REF_SUFFIX in candidate and ref is None):
+        raise ValueError(f"unsupported github file: {_scrub(candidate)} - use '<owner>/<repo>/<path>[?ref=<ref>]'")
+
+    segments = coordinate.split("/", 2)
     if len(segments) < 2 or not _SHORT_NAME_RE.match(segments[0]) or not _SHORT_NAME_RE.match(segments[1]):
-        raise ValueError(f"unsupported github file: {_scrub(candidate)} - use '<owner>/<repo>/<path>'")
+        raise ValueError(f"unsupported github file: {_scrub(candidate)} - use '<owner>/<repo>/<path>[?ref=<ref>]'")
     if len(segments) < 3:
         raise ValueError(f"github file coordinate is missing a path: {_scrub(candidate)}")
 
@@ -296,7 +341,7 @@ def parse_github_file(value: str) -> GithubReference:
     if not path:
         raise ValueError(f"github file coordinate is missing a path: {_scrub(candidate)}")
 
-    return GithubReference(owner=owner, repo=repo, path=path)
+    return GithubReference(owner=owner, repo=repo, ref=ref, path=path)
 
 
 def contents_url(owner: str, repo: str, path: str, host: str | None = None) -> str:
