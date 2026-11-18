@@ -55,6 +55,28 @@ It builds on top of *dataops-abs*.
 
   o.get(context={"files": files, "target": "/tmp/out"})            # existing folder target
   # ['/tmp/out/README.md']
+
+  # or a lengthy one, downloading all README.md's from repos in 2 accounts/orgs
+  accounts = {"account1": "GH_TOKEN_1", "account2": "GH_TOKEN_2"}
+
+  dump_url = tempfile.mkdtemp()
+  print(f"dump_url: {dump_url}")
+
+  for account, token_env in accounts.items():
+      token = os.getenv(token_env)
+      repos = list_account_repositories(
+          account,
+          filters=RepositoryFilters(include_private=False, include_forks=False, include_archived=False),
+          token=token,
+      )
+      o = GithubFileSource({"token": token})
+      readmes = []
+      for repo in repos:
+          readmes += o.list(
+              context={"source": repo["full_name"], "branch": repo["default_branch"], "suffix": "README.md"}
+          )
+      o.get(context={"files": readmes, "target": dump_url})
+
   ```
 - __LocalFsFileSource__: __Source__ implementation class used to retrieve local objects/files to another local fs location ([example](tests/tgedr_dataops/source/test_localfs_file_source.py))
 - __PdDfS3Source__: __Source__ implementation class used to read a pandas dataframe from s3, whether a csv or an excel (xslx) file ([example csv](tests/tgedr_dataops/source/test_pd_df_s3_source_csv.py), [example excel](tests/tgedr_dataops/source/test_pd_df_s3_source_excel.py))
